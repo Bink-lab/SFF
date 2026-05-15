@@ -7,7 +7,7 @@ from pathlib import Path
 block_cipher = None
 
 spec_root = os.path.abspath(SPECPATH)
-icon_path = os.path.join(spec_root, 'sff.ico')
+icon_path = next((os.path.join(spec_root, name) for name in ('SFF.ico', 'sff.ico', 'SFF.png', 'sff.png') if os.path.exists(os.path.join(spec_root, name))), None)
 
 def get_win10toast_data():
     try:
@@ -34,10 +34,9 @@ dlc_resources_dir = os.path.join(spec_root, 'sff', 'dlc_unlockers', 'resources')
 if os.path.exists(dlc_resources_dir):
     datas.append((dlc_resources_dir, 'sff/dlc_unlockers/resources'))
 
-if os.path.exists(os.path.join(spec_root, 'sff.png')):
-    datas.append(('sff.png', '.'))
-if os.path.exists(os.path.join(spec_root, 'sff.ico')):
-    datas.append(('sff.ico', '.'))
+for icon_name in ('SFF.png', 'SFF.ico', 'sff.png', 'sff.ico'):
+    if os.path.exists(os.path.join(spec_root, icon_name)):
+        datas.append((icon_name, '.'))
 gui_resources = os.path.join(spec_root, 'sff', 'gui', 'resources')
 if os.path.exists(gui_resources):
     datas.append((gui_resources, 'sff/gui/resources'))
@@ -202,7 +201,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=icon_path if os.path.exists(icon_path) else None,
+    icon=icon_path,
 )
 
 coll = COLLECT(

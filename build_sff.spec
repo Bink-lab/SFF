@@ -13,7 +13,7 @@ block_cipher = None
 
 # Get the directory where this spec file is located (where Main.py, sff.ico, etc. live)
 spec_root = os.path.abspath(SPECPATH)
-icon_path = os.path.join(spec_root, 'sff.ico')
+icon_path = next((os.path.join(spec_root, name) for name in ('SFF.ico', 'sff.ico', 'SFF.png', 'sff.png') if os.path.exists(os.path.join(spec_root, name))), None)
 
 # Find win10toast data directory
 def get_win10toast_data():
@@ -54,10 +54,9 @@ if os.path.exists(c_dir):
     datas.append((c_dir, 'c'))
 
 # Add icon assets if they exist
-if os.path.exists(os.path.join(spec_root, 'sff.png')):
-    datas.append(('sff.png', '.'))
-if os.path.exists(os.path.join(spec_root, 'sff.ico')):
-    datas.append(('sff.ico', '.'))
+for icon_name in ('SFF.png', 'SFF.ico', 'sff.png', 'sff.ico'):
+    if os.path.exists(os.path.join(spec_root, icon_name)):
+        datas.append((icon_name, '.'))
 
 # Include all_games.txt for offline game name resolution in Cloud Saves
 all_games_txt = os.path.join(spec_root, 'all_games.txt')
@@ -156,7 +155,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=icon_path if os.path.exists(icon_path) else None,
+    icon=icon_path,
 )
 
 coll = COLLECT(

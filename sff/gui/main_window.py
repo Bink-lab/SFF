@@ -50,7 +50,11 @@ from PyQt6.QtWidgets import (
     QTabWidget,
 )
 
+from sff.app_icons import load_app_icon
+from sff.file_imports import has_supported_files, import_manifest_files, split_supported_files
+from sff.gui.floating_logo import FloatingLogo
 from sff.gui.log_window import GlobalLogWindow, QtLogHandler
+from sff.gui.quick_actions import QuickAction
 from sff.gui.themes import THEMES
 from sff.i18n import T
 from sff.structs import MainMenu, MainReturnCode
@@ -154,6 +158,7 @@ class SFFMainWindow(QMainWindow):
         self._worker = None
         self._worker_thread = None
         self.setWindowTitle("SteaMidra")
+        self.setAcceptDrops(True)
         self.setMinimumSize(960, 700)
         self.resize(1020, 780)
         from sff.gui.gui_prompts import update_parent
@@ -467,7 +472,9 @@ class SFFMainWindow(QMainWindow):
         self._load_web_ui()
         self._web_ui_loaded = True
         self._tray = None
+        self._floating_logo = None
         self._save_watcher_timer = QTimer(self)
+        self._init_floating_logo()
         self._save_watcher_timer.timeout.connect(self._run_background_save_watcher)
         self._start_save_watcher()
 
@@ -544,6 +551,96 @@ class SFFMainWindow(QMainWindow):
         return ACFInfo(app_id, path)
 
     # ── Web UI toggle ────────────────────────────────────────────
+
+
+    def quick_actions(self, include_floating_controls=False):
+        actions = [
+            QuickAction("Show SteaMidra", self._show_main_window),
+            QuickAction("Import .lua / .zip / .manifest...", self._import_files_dialog),
+            QuickAction("Restart Steam", self._restart_steam_quick, separator_before=True),
+            QuickAction("Update all manifests", lambda: self._start_worker(self.ui.update_all_manifests, "Update all manifests")),
+            QuickAction("Settings", self._show_settings, separator_before=True),
+            QuickAction("Log window", self._show_log_window),
+        ]
+        if include_floating_controls:
+            actions.append(QuickAction("Hide floating logo", self._hide_floating_logo, separator_before=True))
+            actions.append(QuickAction("Exit SteaMidra", self.force_quit))
+        else:
+            actions.append(QuickAction("Show floating logo", self._show_floating_logo, separator_before=True))
+        return actions
+
+    def _init_floating_logo(self):
+        icon = self.windowIcon()
+        if icon.isNull():
+            icon = load_app_icon()
+        self._floating_logo = FloatingLogo(icon, self.quick_actions(include_floating_controls=True), self)
+        self._floating_logo.files_dropped.connect(self._handle_dropped_paths)
+        self._floating_logo.show()
+
+    def _show_main_window(self):
+        self.showNormal()
+        self.activateWindow()
+        self.raise_()
+
+    def _show_floating_logo(self):
+        if self._floating_logo is not None:
+            self._floating_logo.show()
+            self._floating_logo.raise_()
+
+    def _hide_floating_logo(self):
+        if self._floating_logo is not None:
+            self._floating_logo.hide()
+
+    def _import_files_dialog(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Import Lua, ZIP, or manifest files",
+            str(Path.home()),
+            "SteaMidra imports (*.lua *.zip *.manifest);;Lua files (*.lua);;ZIP files (*.zip);;Manifest files (*.manifest);;All files (*)",
+        )
+        if files:
+            self._handle_dropped_paths([Path(f) for f in files])
+
+    def _handle_dropped_paths(self, paths):
+        batch = split_supported_files(Path(p) for p in paths)
+        if batch.accepted_count == 0:
+            QMessageBox.information(self, "No supported files", "Drop .lua, .zip, or .manifest files onto SteaMidra.")
+            return
+        label = f"Import {batch.accepted_count} file(s)"
+        def _job():
+            if batch.manifests:
+                written = import_manifest_files(batch.manifests, self.steam_path)
+                print(f"Imported {len(written)} manifest file(s) into depotcache.")
+            for path in batch.lua_like:
+                print(f"Processing {path.name}...")
+                self.ui.process_lua_full(path)
+            if batch.ignored:
+                print(f"Ignored {len(batch.ignored)} unsupported file(s).")
+        self._start_worker(_job, label)
+
+    def _restart_steam_quick(self):
+        from sff.steam_control import restart_steam
+        applist_folder = getattr(getattr(self.ui, "app_list_man", None), "applist_folder", None)
+        self._start_worker(lambda: restart_steam(self.steam_path, applist_folder), "Restart Steam")
+
+    def dragEnterEvent(self, event):
+        if has_supported_files(self._drop_event_paths(event)):
+            event.acceptProposedAction()
+            return
+        super().dragEnterEvent(event)
+
+    def dropEvent(self, event):
+        paths = self._drop_event_paths(event)
+        if has_supported_files(paths):
+            self._handle_dropped_paths(paths)
+            event.acceptProposedAction()
+            return
+        super().dropEvent(event)
+
+    def _drop_event_paths(self, event):
+        if not event.mimeData().hasUrls():
+            return []
+        return [Path(url.toLocalFile()) for url in event.mimeData().urls() if url.isLocalFile()]
 
     def _toggle_web_ui(self):
         """Toggle between classic tab UI and new web-based UI."""

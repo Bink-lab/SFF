@@ -30,6 +30,8 @@ from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import pyqtSignal, QObject
 
+from sff.gui.quick_actions import QuickAction, populate_quick_actions
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,6 +53,12 @@ class TrayIcon(QObject):
         self._menu: Optional[QMenu] = None
         self._icon_path = icon_path
         self._minimize_to_tray = True
+        self._quick_actions: list[QuickAction] = []
+
+    def set_quick_actions(self, actions: list[QuickAction]):
+        self._quick_actions = actions
+        if self._tray:
+            self._build_menu()
 
     def setup(self, app_icon = None):
         """initialize the tray icon — call this after QApplication is created"""
@@ -78,6 +86,9 @@ class TrayIcon(QObject):
         # placeholder for recent games - populated dynamically
         self._recent_menu = self._menu.addMenu("Recent Games")
         self._recent_menu.addAction("(none)")
+        if self._quick_actions:
+            self._menu.addSeparator()
+            populate_quick_actions(self._menu, self._quick_actions)
         self._menu.addSeparator()
         exit_action = QAction("Exit", self._menu)
         exit_action.triggered.connect(self.exit_requested.emit)

@@ -21,7 +21,6 @@ import os
 import sys
 from pathlib import Path
 
-from PyQt6.QtGui import QIcon
 
 
 class _NullWriter:
@@ -96,6 +95,8 @@ def get_steam_path_gui():
 
 
 def main():
+    from sff.app_icons import load_app_icon, set_windows_app_user_model_id
+    set_windows_app_user_model_id()
     lang = get_setting(Settings.LANGUAGE)
     if lang:
         from sff.i18n import set_language
@@ -110,12 +111,7 @@ def main():
     if _guard.try_activate_existing():
         sys.exit(0)
 
-    _app_icon = QIcon()
-    for _ic in ("SFF.ico", "SFF.png"):
-        _candidate = QIcon(str(Path(_ic)))
-        if not _candidate.isNull():
-            _app_icon = _candidate
-            break
+    _app_icon = load_app_icon()
     if not _app_icon.isNull():
         app.setWindowIcon(_app_icon)
     if sys.platform == "linux":
@@ -171,6 +167,7 @@ def main():
 
     from sff.tray_icon import TrayIcon
     tray = TrayIcon()
+    tray.set_quick_actions(window.quick_actions())
     tray.setup(_app_icon if not _app_icon.isNull() else app.windowIcon())
     window.set_tray(tray)
     tray.show_requested.connect(window.showNormal)
