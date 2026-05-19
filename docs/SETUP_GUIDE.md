@@ -15,7 +15,7 @@ What you need to use SteaMidra and how to get started.
 
 ## Step 1: Download SteaMidra
 
-Download the latest release from [GitHub Releases](https://github.com/Midrags/SFF/releases/latest).
+Download the latest release from [GitHub Releases](https://github.com/bink-lab/sff/releases/latest).
 
 Extract the ZIP anywhere — you will get a folder with `SteaMidra_GUI.exe` and an `_internal/` folder inside. Place the whole folder wherever you want (e.g. `C:\SteaMidra\`) and run `SteaMidra_GUI.exe` from inside it.
 

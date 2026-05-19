@@ -176,6 +176,29 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Release Notes
+        id: generate_notes
+        run: |
+          LATEST_STABLE_TAG=$(git tag -l "v*" --sort=-v:refname | head -n 1)
+          if [ -z "$LATEST_STABLE_TAG" ]; then
+            # Fallback if no v* tags found
+            LATEST_STABLE_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          
+          echo "## 🌙 Nightly Build" > release_notes.md
+          echo "This is an automated build from the latest commits on the \`main\` branch." >> release_notes.md
+          echo "**Note:** Nightly builds may be unstable. Use at your own risk." >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 📝 Changes since $LATEST_STABLE_TAG" >> release_notes.md
+          git log $LATEST_STABLE_TAG..HEAD --oneline --pretty=format:"* %s (%h)" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$LATEST_STABLE_TAG...main" >> release_notes.md
+
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -213,13 +236,10 @@ jobs:
         with:
           tag_name: nightly
           name: Nightly Build
-          body: |
-            ## 🌙 Nightly Build
-            This is an automated build from the latest commits on the `main` branch.
-            **Note:** Nightly builds may be unstable. Use at your own risk.
+          body_path: release_notes.md
           prerelease: true
           files: release_assets/*
-          generate_release_notes: true
+          generate_release_notes: false
           make_latest: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

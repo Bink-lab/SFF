@@ -1137,23 +1137,49 @@ class UI:
             uninstall_context_menu()
         return MainReturnCode.LOOP_NO_PROMPT
 
-    def check_updates(self, os_type, test = False):
-        print("Checking for updates (GitHub releases)...", end="", flush=True)
-        is_newer, resp = Updater.update_available()
-        print(" Done!")
+    def check_updates(self, os_type, test = False, channel = None, auto_check = False):
+        if channel is None:
+            channel = get_setting(Settings.UPDATE_CHANNEL) or "Stable (Normal)"
+        
+        if not auto_check:
+            print(f"Checking for updates ({channel})...", end="", flush=True)
+        
+        is_newer, resp = Updater.update_available(channel=channel)
+        
+        if not auto_check:
+            print(" Done!")
+            
         if resp is None:
-            print("Could not fetch latest release (check your connection or the releases page).")
+            if not auto_check:
+                print("Could not fetch latest release (check your connection or the releases page).")
             return MainReturnCode.LOOP_NO_PROMPT
+            
         remote_version = (resp.get("tag_name") or "").strip()
-        print(f"Your version: {VERSION}")
-        print(f"Latest version: {remote_version}")
+        
+        if not auto_check:
+            print(f"Your version: {VERSION}")
+            print(f"Latest version: {remote_version}")
+            
         if not is_newer and not test:
-            print(Fore.GREEN + "You're already on the latest version." + Style.RESET_ALL)
+            if not auto_check:
+                print(Fore.GREEN + "You're already on the latest version." + Style.RESET_ALL)
             return MainReturnCode.LOOP_NO_PROMPT
+            
         if not is_newer and test:
-            print(Fore.GREEN + "Version check only: no newer release." + Style.RESET_ALL)
+            if not auto_check:
+                print(Fore.GREEN + "Version check only: no newer release." + Style.RESET_ALL)
             return MainReturnCode.LOOP_NO_PROMPT
-        print(Fore.YELLOW + "A newer version is available." + Style.RESET_ALL)
+            
+        if auto_check:
+            print(Fore.YELLOW + f"\nA newer version ({remote_version}) is available via the {channel} channel." + Style.RESET_ALL)
+        else:
+            print(Fore.YELLOW + "A newer version is available." + Style.RESET_ALL)
+            
+        if channel == "Nightly (Continuous)":
+            pub_at = resp.get("published_at")
+            if pub_at:
+                set_setting(Settings.LAST_SEEN_NIGHTLY_TIMESTAMP, pub_at)
+
         release_url = resp.get("html_url") or RELEASE_PAGE_URL
         is_frozen = getattr(sys, "frozen", False)
         assets = resp.get("assets") or []

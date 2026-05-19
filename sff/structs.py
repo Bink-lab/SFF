@@ -191,6 +191,8 @@ class Settings(Enum):
     PARALLEL_DOWNLOADS = SettingItem("parallel_downloads", "Parallel Download Workers", False, str)
     BACKUP_RETENTION = SettingItem("backup_retention", "Backup Retention Count", False, str)
     ENABLE_NOTIFICATIONS = SettingItem("enable_notifications", "Enable Desktop Notifications", False, bool)
+    AUTO_UPDATE_ENABLED = SettingItem("auto_update_enabled", "Enable Auto Update", False, bool)
+    UPDATE_CHANNEL = SettingItem("update_channel", "Update Channel", False, list(ReleaseType))
     MINIMIZE_TO_TRAY_ON_CLOSE = SettingItem("minimize_to_tray_on_close", "Minimize to Tray on Close", False, bool)
     USE_PARALLEL_DOWNLOADS = SettingItem("use_parallel_downloads", "Use Parallel Downloads", False, bool)
     ACTIVE_UNLOCKER_PER_GAME = SettingItem("active_unlocker_per_game", "Active DLC Unlocker Per Game", False, dict)
@@ -209,6 +211,7 @@ class Settings(Enum):
     SAVE_WATCHER_INTERVAL = SettingItem("save_watcher_interval", "Background Save Watcher Interval (minutes, 0=off)", False, str)
     LAST_BACKUP_PROVIDER_CONFIG = SettingItem("last_backup_provider_config", "Last Cloud Save Provider Config (managed automatically)", False, str)
     CLOUD_PROVIDER = SettingItem("cloud_provider", "Cloud Save Provider", False, str)
+    LAST_SEEN_NIGHTLY_TIMESTAMP = SettingItem("last_seen_nightly_timestamp", "Last Seen Nightly Timestamp", False, str)
     CLOUD_RCLONE_EXE = SettingItem("cloud_rclone_exe", "Cloud Save rclone Executable", False, str)
     CLOUD_RCLONE_REMOTE = SettingItem("cloud_rclone_remote", "Cloud Save rclone Remote", False, str)
 
@@ -362,8 +365,8 @@ class ContextMenuOptions(Enum):
 
 
 class ReleaseType(Enum):
-    PRERELEASE = "Pre-release (Buggy)"
-    STABLE = "Stable"
+    NIGHTLY = "Nightly (Continuous)"
+    STABLE = "Stable (Normal)"
 
 
 class OSType(Enum):

@@ -2,7 +2,7 @@
 
 How to run SteaMidra from source or build the EXE yourself.
 
-> Most users should use the pre-built EXE from [GitHub Releases](https://github.com/Midrags/SFF/releases/latest). This guide is for developers and advanced users only.
+> Most users should use the pre-built EXE from [GitHub Releases](https://github.com/bink-lab/sff/releases/latest). This guide is for developers and advanced users only.
 
 ---
 

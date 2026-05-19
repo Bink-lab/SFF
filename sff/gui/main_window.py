@@ -1,5 +1,5 @@
 # SteaMidra - Steam game setup and manifest tool (SFF)
-# Copyright (c) 2025-2026 Midrag (https://github.com/Midrags)
+# Copyright (c) 2025-2026 Midrag (https://github.com/bink-lab)
 #
 # This file is part of SteaMidra.
 #
@@ -189,6 +189,35 @@ class SFFMainWindow(QMainWindow):
         self._save_watcher_timer = QTimer(self)
         self._save_watcher_timer.timeout.connect(self._run_background_save_watcher)
         self._start_save_watcher()
+        self._update_checker_timer = QTimer(self)
+        self._update_checker_timer.timeout.connect(self._run_background_update_check)
+        self._start_update_checker()
+
+    def _start_update_checker(self):
+        from sff.storage.settings import get_setting
+        from sff.structs import Settings as _S
+        enabled = get_setting(_S.AUTO_UPDATE_ENABLED)
+        self._update_checker_timer.stop()
+        if enabled:
+            self._update_checker_timer.start(4 * 60 * 60 * 1000)
+            QTimer.singleShot(10000, self._run_background_update_check)
+
+    def _run_background_update_check(self):
+        import threading
+        t = threading.Thread(target=self._do_background_update_check, daemon=True)
+        t.start()
+
+    def _do_background_update_check(self):
+        from sff.storage.settings import get_setting
+        from sff.structs import Settings as _S
+        enabled = get_setting(_S.AUTO_UPDATE_ENABLED)
+        if not enabled:
+            return
+        channel = get_setting(_S.UPDATE_CHANNEL) or "Stable (Normal)"
+        try:
+            self.ui.check_updates(self.ui.os_type, channel=channel, auto_check=True)
+        except Exception:
+            logger.debug("Update checker error", exc_info=True)
 
     # ── Path / game source helpers ───────────────────────────────
 
@@ -522,6 +551,8 @@ class SFFMainWindow(QMainWindow):
             set_language(get_setting(Settings.LANGUAGE))
         elif s == Settings.SAVE_WATCHER_INTERVAL:
             self._start_save_watcher()
+        elif s in (Settings.AUTO_UPDATE_ENABLED, Settings.UPDATE_CHANNEL):
+            self._start_update_checker()
 
     # ── Tray / close-to-tray ────────────────────────────────────
 
@@ -702,5 +733,5 @@ class SFFMainWindow(QMainWindow):
             self,
             "About SteaMidra",
             f"SteaMidra\nVersion {VERSION}\n\n"
-            "https://github.com/Midrags/SFF/releases",
+            "https://github.com/bink-lab/sff/releases",
         )
