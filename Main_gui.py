@@ -214,6 +214,22 @@ def main():
     tray = TrayIcon()
     tray.setup(_app_icon if not _app_icon.isNull() else app.windowIcon())
     window.set_tray(tray)
+
+    from sff.gui.floating_icon import FloatingIcon
+    _floating_icon_path = "SFF.png" if os.path.exists("SFF.png") else (os.path.join(getattr(sys, "_MEIPASS", ""), "SFF.png") if getattr(sys, "frozen", False) else None)
+    _floating = FloatingIcon(icon_path=_floating_icon_path)
+    def _process_floating_drop(p):
+        from sff.install_location import should_prompt_for_install_path
+        if should_prompt_for_install_path(steam_path):
+            window.showNormal()
+            window.activateWindow()
+            window.raise_()
+        window.run_tool(lambda: ui.process_lua_full(file=Path(p)))
+    _floating.file_dropped.connect(_process_floating_drop)
+    _floating.show()
+    app.aboutToQuit.connect(_floating.save_position)
+    tray.show_floating_requested.connect(_floating.show)
+
     tray.show_requested.connect(window.showNormal)
     tray.show_requested.connect(window.activateWindow)
     tray.exit_requested.connect(app.quit)
