@@ -28,14 +28,20 @@ jobs:
       - name: Patch win10toast
         shell: pwsh
         run: |
-          $win10toast_path = python -c "import win10toast, os; print(os.path.join(os.path.dirname(win10toast.__file__), '__init__.py'))"
+          $win10toast_info = pip show win10toast
+          $location = ($win10toast_info | Select-String "Location: ").ToString().Split(" ", 2)[1].Trim()
+          $win10toast_path = Join-Path $location "win10toast\__init__.py"
+          
           if (Test-Path $win10toast_path) {
+              echo "Patching win10toast at $win10toast_path"
               $content = Get-Content $win10toast_path -Raw
               $content = $content -replace 'from pkg_resources import Requirement', '# from pkg_resources import Requirement'
               $content = $content -replace 'from pkg_resources import resource_filename', '# from pkg_resources import resource_filename'
               $content = $content -replace 'icon_path = resource_filename\(Requirement\.parse\("win10toast"\), "win10toast/data/python\.ico"\)', 'import os; icon_path = os.path.join(os.path.dirname(__file__), "data", "python.ico")'
               Set-Content -Path $win10toast_path -Value $content -Encoding utf8
-              echo "win10toast patched at $win10toast_path"
+              echo "win10toast patched successfully."
+          } else {
+              echo "Warning: win10toast path not found at $win10toast_path"
           }
 
       - name: Build with PyInstaller
