@@ -79,6 +79,52 @@ class MainMenu(Enum):
     EXIT = "Exit"
 
 
+class SettingCustomTypes(Enum):
+    DIR = auto()
+    FILE = auto()
+
+
+class ManifestGetModes(Enum):
+    AUTO = "Auto"
+    MANUAL = "Manual"
+
+
+class DLCTypes(Enum):
+    DEPOT = "DOWNLOAD REQUIRED"
+    NOT_DEPOT = "PRE-INSTALLED"
+    UNRELEASED = "UNRELEASED"
+
+
+class ContextMenuOptions(Enum):
+    INSTALL = "Install"
+    UNINSTALL = "Uninstall"
+
+
+class ReleaseType(Enum):
+    NIGHTLY = "Nightly (Continuous)"
+    STABLE = "Stable (Normal)"
+
+
+class OSType(Enum):
+    WINDOWS = auto()
+    LINUX = auto()
+    OTHER = auto()
+
+
+class SupportedLanguages(Enum):
+    EN = "en"
+    PT = "pt"
+    DE = "de"
+    ES = "es"
+    PL = "pl"
+    RU = "ru"
+    AR = "ar"
+    AUTO = "Auto"
+
+
+SettingType = Union[type, list[Enum], SettingCustomTypes]
+
+
 GameSpecificChoices = Literal[
     MainMenu.CRACK_GAME,
     MainMenu.REMOVE_DRM,
@@ -131,51 +177,6 @@ class MainReturnCode(Enum):
     LOOP = auto()
     LOOP_NO_PROMPT = auto()
     EXIT = auto()
-
-
-class SettingCustomTypes(Enum):
-    DIR = auto()
-    FILE = auto()
-
-
-class ManifestGetModes(Enum):
-    AUTO = "Auto"
-    MANUAL = "Manual"
-
-
-class DLCTypes(Enum):
-    DEPOT = "DOWNLOAD REQUIRED"
-    NOT_DEPOT = "PRE-INSTALLED"
-    UNRELEASED = "UNRELEASED"
-
-
-class ContextMenuOptions(Enum):
-    INSTALL = "Install"
-    UNINSTALL = "Uninstall"
-
-
-class ReleaseType(Enum):
-    NIGHTLY = "Nightly (Continuous)"
-    STABLE = "Stable (Normal)"
-
-
-class OSType(Enum):
-    WINDOWS = auto()
-    LINUX = auto()
-    OTHER = auto()
-
-
-class SupportedLanguages(Enum):
-    EN = "en"
-    PT = "pt"
-    DE = "de"
-    ES = "es"
-    PL = "pl"
-    RU = "ru"
-    AR = "ar"
-    AUTO = "Auto"
-
-SettingType = Union[type, list[Enum], SettingCustomTypes]
 
 
 class SettingItem(NamedTuple):
@@ -373,4 +374,3 @@ class MidiFiles(Enum):
     MIDI_PLAYER_DLL = root_folder() / f"c/midi_player_lib.{_midi_lib_ext}"
     SOUNDFONT = root_folder() / "c/Extended_Super_Mario_64_Soundfont.sf2"
     MIDI = root_folder() / "c/th105_broken_moon_redpaper_.mid"
-
