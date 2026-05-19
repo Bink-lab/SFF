@@ -191,33 +191,30 @@ jobs:
       - name: Generate Release Notes
         id: generate_notes
         run: |
-          # Find the latest tag to use as base for the changelog
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
           if [ -z "$PREVIOUS_TAG" ]; then
-            # Fallback to initial commit if no tags exist
             PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
           fi
 
           echo "Using $PREVIOUS_TAG as base for changelog"
           
-          echo "## 🌙 Nightly Build (${{ steps.build_info.outputs.SHA }})" > release_notes.md
-          echo "This is an automated build from the latest commits on the \`main\` branch." >> release_notes.md
-          echo "**Note:** Nightly builds may be unstable. Use at your own risk." >> release_notes.md
+          echo "## Nightly Build (${{ steps.build_info.outputs.SHA }})" > release_notes.md
+          echo "Automated build from the latest commit on the \`main\` branch." >> release_notes.md
+          echo "Nightly builds may be unstable." >> release_notes.md
           echo "" >> release_notes.md
           
-          # Only add "Changes since" if there are actual new commits
           NEW_COMMITS=$(git log $PREVIOUS_TAG..HEAD --oneline)
           if [ -z "$NEW_COMMITS" ]; then
             echo "No new changes since last build." >> release_notes.md
           else
-            echo "### 📝 Changes since $PREVIOUS_TAG" >> release_notes.md
+            echo "### Changes since $PREVIOUS_TAG" >> release_notes.md
             git log $PREVIOUS_TAG..HEAD --oneline --pretty=format:"* %s (%h)" >> release_notes.md
           fi
           
           echo "" >> release_notes.md
           echo "" >> release_notes.md
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...main" >> release_notes.md
+          echo "**Compare:** https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...main" >> release_notes.md
 
       - name: Download Artifacts
         uses: actions/download-artifact@v4
