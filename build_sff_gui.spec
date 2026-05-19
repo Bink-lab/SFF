@@ -207,6 +207,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=icon_path if os.path.exists(icon_path) else None,
+    version='file_version_info.txt',
 )
 
 coll = COLLECT(
