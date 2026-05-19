@@ -308,7 +308,8 @@ class WebBridge(QObject):
             from sff.structs import LuaEndpoint
 
             steam_path = self._steam_path
-            lib_path = Path(self._active_library) if self._active_library else steam_path
+            from sff.install_location import get_default_game_install_path
+            lib_path = Path(self._active_library) if self._active_library else get_default_game_install_path(steam_path) or steam_path
 
             # Step 1: download lua
             self.download_progress.emit(json.dumps({
@@ -478,7 +479,8 @@ class WebBridge(QObject):
             }))
 
             from pathlib import Path as _Path
-            lib_override = _Path(self._active_library) if self._active_library else self._steam_path
+            from sff.install_location import get_default_game_install_path
+            lib_override = _Path(self._active_library) if self._active_library else get_default_game_install_path(self._steam_path) or self._steam_path
             self._ui.process_from_store(
                 app_id=app_id,
                 manifest_override=manifest_override,
@@ -515,7 +517,8 @@ class WebBridge(QObject):
             }))
 
             from pathlib import Path as _Path
-            lib_override = _Path(self._active_library) if self._active_library else self._steam_path
+            from sff.install_location import get_default_game_install_path
+            lib_override = _Path(self._active_library) if self._active_library else get_default_game_install_path(self._steam_path) or self._steam_path
             self._ui.process_from_store(
                 app_id=app_id,
                 manifest_override=manifest_override,
@@ -1766,7 +1769,8 @@ class WebBridge(QObject):
                 from sff.depot_downloader import run_download, filter_depots_by_os
 
                 steam_path = self._steam_path
-                dest = _Path(self._active_library) if self._active_library else steam_path
+                from sff.install_location import get_default_game_install_path
+                dest = _Path(self._active_library) if self._active_library else get_default_game_install_path(steam_path) or steam_path
                 if dest is None:
                     return (False, "No Steam library selected. Please select a download location.")
 
