@@ -138,6 +138,33 @@ class SettingCustomTypes(Enum):
     FILE = auto()
 
 
+class ManifestGetModes(Enum):
+    AUTO = "Auto"
+    MANUAL = "Manual"
+
+
+class DLCTypes(Enum):
+    DEPOT = "DOWNLOAD REQUIRED"
+    NOT_DEPOT = "PRE-INSTALLED"
+    UNRELEASED = "UNRELEASED"
+
+
+class ContextMenuOptions(Enum):
+    INSTALL = "Install"
+    UNINSTALL = "Uninstall"
+
+
+class ReleaseType(Enum):
+    NIGHTLY = "Nightly (Continuous)"
+    STABLE = "Stable (Normal)"
+
+
+class OSType(Enum):
+    WINDOWS = auto()
+    LINUX = auto()
+    OTHER = auto()
+
+
 class SupportedLanguages(Enum):
     EN = "en"
     PT = "pt"
@@ -347,29 +374,3 @@ class MidiFiles(Enum):
     SOUNDFONT = root_folder() / "c/Extended_Super_Mario_64_Soundfont.sf2"
     MIDI = root_folder() / "c/th105_broken_moon_redpaper_.mid"
 
-
-class ManifestGetModes(Enum):
-    AUTO = "Auto"
-    MANUAL = "Manual"
-
-
-class DLCTypes(Enum):
-    DEPOT = "DOWNLOAD REQUIRED"
-    NOT_DEPOT = "PRE-INSTALLED"
-    UNRELEASED = "UNRELEASED"
-
-
-class ContextMenuOptions(Enum):
-    INSTALL = "Install"
-    UNINSTALL = "Uninstall"
-
-
-class ReleaseType(Enum):
-    NIGHTLY = "Nightly (Continuous)"
-    STABLE = "Stable (Normal)"
-
-
-class OSType(Enum):
-    WINDOWS = auto()
-    LINUX = auto()
-    OTHER = auto()
