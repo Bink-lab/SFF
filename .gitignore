@@ -189,6 +189,7 @@ SteaMidra-*.zip
 bfg-report/
 uv.lock
 notes.txt
+GEMINI.md
 
 # DLL Analysis / Specific Debugging
 DLL_files/
