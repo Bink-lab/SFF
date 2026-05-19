@@ -602,7 +602,11 @@ class UI:
         return MainReturnCode.LOOP
 
     def select_steam_library(self):
-        steam_libs = get_steam_libs(self.steam_path)
+        from sff.install_location import get_default_game_install_path, get_install_libraries
+        default_lib = get_default_game_install_path(self.steam_path)
+        if default_lib is not None:
+            return default_lib
+        steam_libs = get_install_libraries(self.steam_path)
         if len(steam_libs) == 1:
             return steam_libs[0]
         steam_lib_path = prompt_select(
@@ -814,7 +818,9 @@ class UI:
         acf = ACFWriter(lib_path)
         steam_proc = None
         parsed_lua = lua_manager.fetch_lua(
-            LuaChoice.ADD_LUA if file else None, override_path=file
+            LuaChoice.ADD_LUA if file else None,
+            override_path=file,
+            depotcache=self.steam_path / "depotcache" if self.steam_path else None,
         )
         if parsed_lua is None:
             return MainReturnCode.LOOP_NO_PROMPT
