@@ -180,24 +180,41 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get Build Info
+        id: build_info
+        run: |
+          echo "SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Generate Release Notes
         id: generate_notes
         run: |
-          LATEST_STABLE_TAG=$(git tag -l "v*" --sort=-v:refname | head -n 1)
-          if [ -z "$LATEST_STABLE_TAG" ]; then
-            # Fallback if no v* tags found
-            LATEST_STABLE_TAG=$(git rev-list --max-parents=0 HEAD)
-          fi
+          # Find the latest tag to use as base for the changelog
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
-          echo "## 🌙 Nightly Build" > release_notes.md
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # Fallback to initial commit if no tags exist
+            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "Using $PREVIOUS_TAG as base for changelog"
+          
+          echo "## 🌙 Nightly Build (${{ steps.build_info.outputs.SHA }})" > release_notes.md
           echo "This is an automated build from the latest commits on the \`main\` branch." >> release_notes.md
           echo "**Note:** Nightly builds may be unstable. Use at your own risk." >> release_notes.md
           echo "" >> release_notes.md
-          echo "### 📝 Changes since $LATEST_STABLE_TAG" >> release_notes.md
-          git log $LATEST_STABLE_TAG..HEAD --oneline --pretty=format:"* %s (%h)" >> release_notes.md
+          
+          # Only add "Changes since" if there are actual new commits
+          NEW_COMMITS=$(git log $PREVIOUS_TAG..HEAD --oneline)
+          if [ -z "$NEW_COMMITS" ]; then
+            echo "No new changes since last build." >> release_notes.md
+          else
+            echo "### 📝 Changes since $PREVIOUS_TAG" >> release_notes.md
+            git log $PREVIOUS_TAG..HEAD --oneline --pretty=format:"* %s (%h)" >> release_notes.md
+          fi
+          
           echo "" >> release_notes.md
           echo "" >> release_notes.md
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$LATEST_STABLE_TAG...main" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...main" >> release_notes.md
 
       - name: Download Artifacts
         uses: actions/download-artifact@v4
@@ -207,11 +224,8 @@ jobs:
       - name: Prepare Assets
         run: |
           mkdir release_assets
-          
-          # Extract SHA from artifact directory name
-          SHA_DIR=$(find artifacts -maxdepth 1 -type d -name "SteaMidra-Windows-Setup-*" | head -n 1)
-          SHA=$(echo "$SHA_DIR" | sed 's/.*SteaMidra-Windows-Setup-//')
-          echo "Detected commit SHA: $SHA"
+          SHA=${{ steps.build_info.outputs.SHA }}
+          echo "Commit SHA: $SHA"
 
           # Windows Setup
           SETUP_SRC=$(find artifacts -name "SteaMidra-*-Setup.exe" | head -n 1)
@@ -234,8 +248,8 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: nightly
-          name: Nightly Build
+          tag_name: nightly-${{ steps.build_info.outputs.SHA }}
+          name: Nightly Build (${{ steps.build_info.outputs.SHA }})
           body_path: release_notes.md
           prerelease: true
           files: release_assets/*
