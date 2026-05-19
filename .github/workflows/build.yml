@@ -7,6 +7,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     name: Build Windows
@@ -48,11 +51,13 @@ jobs:
         run: |
           python -m PyInstaller build_sff_gui.spec --noconfirm
 
-      - name: Get Version
-        id: get_version
+      - name: Get Build Info
+        id: build_info
         shell: bash
         run: |
+          SHA_SHORT=$(git rev-parse --short HEAD)
           VERSION=$(grep '^VERSION = ' sff/strings.py | cut -d'"' -f2)
+          echo "SHA=$SHA_SHORT" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Install NSIS
@@ -60,18 +65,18 @@ jobs:
 
       - name: Build NSIS Installer
         run: |
-          makensis /DVERSION=${{ steps.get_version.outputs.VERSION }} installer.nsi
+          makensis /DVERSION=${{ steps.build_info.outputs.SHA }} installer.nsi
 
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
-          name: SteaMidra-Windows-Setup-${{ steps.get_version.outputs.VERSION }}
+          name: SteaMidra-Windows-Setup-${{ steps.build_info.outputs.SHA }}
           path: SteaMidra-*-Setup.exe
 
       - name: Upload Portable Build
         uses: actions/upload-artifact@v4
         with:
-          name: SteaMidra-Windows-Portable-${{ steps.get_version.outputs.VERSION }}
+          name: SteaMidra-Windows-Portable-${{ steps.build_info.outputs.SHA }}
           path: dist/SteaMidra_GUI/
 
   build-linux:
@@ -106,12 +111,12 @@ jobs:
         run: |
           python -m PyInstaller build_sff_linux.spec
 
-      - name: Get Version
-        id: get_version
+      - name: Get Build Info
+        id: build_info
         shell: bash
         run: |
-          VERSION=$(grep '^VERSION = ' sff/strings.py | cut -d'"' -f2)
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          echo "SHA=$SHA_SHORT" >> $GITHUB_OUTPUT
 
       - name: Create AppDir
         run: |
@@ -155,12 +160,66 @@ jobs:
 
       - name: Build AppImage
         run: |
-          ./appimagetool SteaMidra.AppDir SteaMidra-${{ steps.get_version.outputs.VERSION }}-x86_64.AppImage
+          ./appimagetool SteaMidra.AppDir SteaMidra-${{ steps.build_info.outputs.SHA }}-x86_64.AppImage
         env:
           ARCH: x86_64
 
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
         with:
-          name: SteaMidra-Linux-AppImage-${{ steps.get_version.outputs.VERSION }}
+          name: SteaMidra-Linux-AppImage-${{ steps.build_info.outputs.SHA }}
           path: SteaMidra-*-x86_64.AppImage
+
+  create-nightly:
+    name: Create Nightly Release
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare Assets
+        run: |
+          mkdir release_assets
+          
+          # Extract SHA from artifact directory name
+          SHA_DIR=$(find artifacts -maxdepth 1 -type d -name "SteaMidra-Windows-Setup-*" | head -n 1)
+          SHA=$(echo "$SHA_DIR" | sed 's/.*SteaMidra-Windows-Setup-//')
+          echo "Detected commit SHA: $SHA"
+
+          # Windows Setup
+          SETUP_SRC=$(find artifacts -name "SteaMidra-*-Setup.exe" | head -n 1)
+          cp "$SETUP_SRC" "release_assets/SteaMidra-Windows-Setup-$SHA.exe"
+          
+          # Linux AppImage
+          APPIMAGE_SRC=$(find artifacts -name "SteaMidra-*-x86_64.AppImage" | head -n 1)
+          cp "$APPIMAGE_SRC" "release_assets/SteaMidra-Linux-AppImage-$SHA.AppImage"
+          
+          # Zip the Portable Windows build
+          PORTABLE_DIR=$(find artifacts -type d -name "SteaMidra-Windows-Portable-*" | head -n 1)
+          if [ -d "$PORTABLE_DIR" ]; then
+            echo "Zipping portable build from $PORTABLE_DIR"
+            cd "$PORTABLE_DIR" && zip -r "../../release_assets/SteaMidra-Windows-Portable-$SHA.zip" . && cd ../..
+          fi
+          
+          echo "Final assets for release:"
+          ls -R release_assets/
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          body: |
+            ## 🌙 Nightly Build
+            This is an automated build from the latest commits on the `main` branch.
+            **Note:** Nightly builds may be unstable. Use at your own risk.
+          prerelease: true
+          files: release_assets/*
+          generate_release_notes: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

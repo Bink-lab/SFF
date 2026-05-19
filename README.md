@@ -1,9 +1,27 @@
 # SteaMidra
 
+[![Build and Package](https://github.com/bink-lab/SFF/actions/workflows/build.yml/badge.svg)](https://github.com/bink-lab/SFF/actions/workflows/build.yml)
+
 > [!NOTE]
 > This is a **fork** of the original SteaMidra program with special enhancements designed to be feature-rich.
 
 *Original work by Midrag and his brother!*
+
+## 📥 Downloads
+
+### 🚀 Stable Releases
+Download the latest stable version from the [Releases](https://github.com/bink-lab/SFF/releases/latest) page.
+
+### 🌙 Nightly Builds (Experimental)
+Get the absolute latest (potentially unstable) features by downloading the [**Nightly Release**](https://github.com/bink-lab/SFF/releases/tag/nightly). 
+
+These builds are automatically updated on every commit to the `main` branch and are named using the short commit SHA (e.g., `a1b2c3d`):
+- **Windows (Setup)**: `SteaMidra-Windows-Setup-SHA.exe`
+- **Windows (Portable)**: `SteaMidra-Windows-Portable-SHA.zip`
+- **Linux (AppImage)**: `SteaMidra-Linux-AppImage-SHA.AppImage`
+
+*Note: Nightly builds include automatic commit notes so you can see what changed since the last stable release.*
+
 ## Educational use only. Use at your own risk.
 
 > ⚠️ **Antivirus Warning:** Before doing anything, add the entire **SteaMidra folder** (especially `sff\dlc_unlockers\resources`) to Windows Defender exclusions — the DLC unlocker tools inside trigger false positives.
