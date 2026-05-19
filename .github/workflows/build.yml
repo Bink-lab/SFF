@@ -1,0 +1,157 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install steam==1.4.4 --no-deps
+
+      - name: Patch win10toast
+        shell: pwsh
+        run: |
+          $win10toast_path = python -c "import win10toast, os; print(os.path.join(os.path.dirname(win10toast.__file__), '__init__.py'))"
+          if (Test-Path $win10toast_path) {
+              $content = Get-Content $win10toast_path -Raw
+              $content = $content -replace 'from pkg_resources import Requirement', '# from pkg_resources import Requirement'
+              $content = $content -replace 'from pkg_resources import resource_filename', '# from pkg_resources import resource_filename'
+              $content = $content -replace 'icon_path = resource_filename\(Requirement\.parse\("win10toast"\), "win10toast/data/python\.ico"\)', 'import os; icon_path = os.path.join(os.path.dirname(__file__), "data", "python.ico")'
+              Set-Content -Path $win10toast_path -Value $content -Encoding utf8
+              echo "win10toast patched at $win10toast_path"
+          }
+
+      - name: Build with PyInstaller
+        run: |
+          python -m PyInstaller build_sff_gui.spec --noconfirm
+
+      - name: Get Version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(grep '^VERSION = ' sff/strings.py | cut -d'"' -f2)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build NSIS Installer
+        run: |
+          makensis /DVERSION=${{ steps.get_version.outputs.VERSION }} installer.nsi
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: SteaMidra-Windows-Setup-${{ steps.get_version.outputs.VERSION }}
+          path: SteaMidra-*-Setup.exe
+
+      - name: Upload Portable Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: SteaMidra-Windows-Portable-${{ steps.get_version.outputs.VERSION }}
+          path: dist/SteaMidra_GUI/
+
+  build-linux:
+    name: Build Linux (AppImage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libfuse2 libatomic1 libnss3 libnspr4 libxkbfile1 \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-xkb1 libxcb-image0 \
+            libxcb-keysyms1 libxcb-util1 libxcb-render-util0 libxcb-icccm4 \
+            libxcb-shape0 wget
+          sudo apt install -y libasound2t64 || sudo apt install -y libasound2
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements-linux.txt
+          pip install steam==1.4.4 --no-deps
+          pip install seleniumbase --no-deps
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          python -m PyInstaller build_sff_linux.spec
+
+      - name: Get Version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(grep '^VERSION = ' sff/strings.py | cut -d'"' -f2)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create AppDir
+        run: |
+          mkdir -p SteaMidra.AppDir/usr/bin
+          cp -r dist/SteaMidra_GUI/* SteaMidra.AppDir/usr/bin/
+          if [ -f "SFF.png" ]; then
+            cp SFF.png SteaMidra.AppDir/SteaMidra.png
+          fi
+
+      - name: Create AppRun
+        run: |
+          cat > SteaMidra.AppDir/AppRun << 'APPRUN_EOF'
+          #!/usr/bin/env bash
+          SELF="$(readlink -f "$0")"
+          HERE="${SELF%/*}"
+          export PATH="$HERE/usr/bin:$PATH"
+          export LD_LIBRARY_PATH="$HERE/usr/bin:$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
+          export QT_PLUGIN_PATH="$HERE/usr/bin/PyQt6/Qt6/plugins"
+          export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/usr/bin/PyQt6/Qt6/plugins/platforms"
+          export QTWEBENGINE_DISABLE_SANDBOX=1
+          exec "$HERE/usr/bin/SteaMidra_GUI" "$@"
+          APPRUN_EOF
+          chmod +x SteaMidra.AppDir/AppRun
+
+      - name: Create Desktop File
+        run: |
+          cat > SteaMidra.AppDir/SteaMidra.desktop << 'EOF'
+          [Desktop Entry]
+          Name=SteaMidra
+          Exec=SteaMidra_GUI
+          Icon=SteaMidra
+          Terminal=false
+          Type=Application
+          Categories=Utility;
+          EOF
+
+      - name: Download appimagetool
+        run: |
+          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+
+      - name: Build AppImage
+        run: |
+          ./appimagetool SteaMidra.AppDir SteaMidra-${{ steps.get_version.outputs.VERSION }}-x86_64.AppImage
+        env:
+          ARCH: x86_64
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: SteaMidra-Linux-AppImage-${{ steps.get_version.outputs.VERSION }}
+          path: SteaMidra-*-x86_64.AppImage
