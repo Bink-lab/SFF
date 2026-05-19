@@ -33,7 +33,7 @@ echo.
 
 REM Suppress pkg_resources deprecation from PyInstaller/build deps so log stays clean
 set PYTHONWARNINGS=ignore::UserWarning
-python -m PyInstaller build_sff_gui.spec
+python -m PyInstaller -y build_sff_gui.spec
 
 if errorlevel 1 (
     echo.
@@ -46,7 +46,7 @@ if errorlevel 1 (
     echo   2. pip install steam==1.4.4 --no-deps
     echo.
     echo Or just run: install_online_fix_requirements.bat
-    pause
+    REM REM pause
     exit /b 1
 )
 
@@ -68,4 +68,4 @@ echo You can now run: dist\SteaMidra_GUI\SteaMidra_GUI.exe
 echo Zip the dist\SteaMidra_GUI\ folder for distribution.
 echo Settings will be saved next to the EXE.
 echo.
-pause
+REM pause
