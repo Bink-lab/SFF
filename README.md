@@ -1,6 +1,9 @@
-# SteaMidra Trusted by r/FMHY [FMHY](https://fmhy.net/gaming-tools#steam-epic) and r/Piracy [Piracy](https://www.reddit.com/r/Piracy/wiki/megathread/games/#:~:text=SteaMidra)
+# SteaMidra
 
-*Made by Midrag and his brother!*
+> [!NOTE]
+> This is a **fork** of the original SteaMidra program with special enhancements designed to be feature-rich.
+
+*Original work by Midrag and his brother!*
 ## Educational use only. Use at your own risk.
 
 > ⚠️ **Antivirus Warning:** Before doing anything, add the entire **SteaMidra folder** (especially `sff\dlc_unlockers\resources`) to Windows Defender exclusions — the DLC unlocker tools inside trigger false positives.

@@ -1,4 +1,6 @@
-# SteaMidra Documentation
+# SteaMidra (Enhanced Fork)
+
+**Note:** This repository is a fork of the original SteaMidra program with special enhancements for improved usability and additional features.
 
 SteaMidra helps you set up games to work with Steam using Lua scripts, manifests, and LumaCore. It writes the right files into your Steam folder so games can run. It does not replace or crack Steam itself.
 
