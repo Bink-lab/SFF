@@ -34,10 +34,10 @@ dlc_resources_dir = os.path.join(spec_root, 'sff', 'dlc_unlockers', 'resources')
 if os.path.exists(dlc_resources_dir):
     datas.append((dlc_resources_dir, 'sff/dlc_unlockers/resources'))
 
-if os.path.exists(os.path.join(spec_root, 'sff.png')):
-    datas.append(('sff.png', '.'))
-if os.path.exists(os.path.join(spec_root, 'sff.ico')):
-    datas.append(('sff.ico', '.'))
+if os.path.exists(os.path.join(spec_root, 'SFF.png')):
+    datas.append(('SFF.png', '.'))
+if os.path.exists(os.path.join(spec_root, 'SFF.ico')):
+    datas.append(('SFF.ico', '.'))
 gui_resources = os.path.join(spec_root, 'sff', 'gui', 'resources')
 if os.path.exists(gui_resources):
     datas.append((gui_resources, 'sff/gui/resources'))
