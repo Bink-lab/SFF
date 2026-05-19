@@ -55,6 +55,9 @@ jobs:
           VERSION=$(grep '^VERSION = ' sff/strings.py | cut -d'"' -f2)
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Install NSIS
+        uses: negrutiu/nsis-install@v2
+
       - name: Build NSIS Installer
         run: |
           makensis /DVERSION=${{ steps.get_version.outputs.VERSION }} installer.nsi
