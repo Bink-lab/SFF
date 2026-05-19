@@ -7,9 +7,9 @@
 
 *Original work by Midrag and his brother!*
 
-## 📥 Downloads
+## Downloads
 
-### 🚀 Stable Releases
+### Stable Releases
 Download the latest stable version from the [Releases](https://github.com/bink-lab/sff/releases/latest) page.
 
 ### 🌙 Nightly Builds (Experimental)
