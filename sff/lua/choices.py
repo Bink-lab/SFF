@@ -88,7 +88,7 @@ def select_from_saved_luas(saved_lua, named_ids):
     return LuaResult(lua_path, None, LuaChoiceReturnCode.LOOP)
 
 
-def add_new_lua(file = None):
+def add_new_lua(file = None, depotcache = None):
 
     lua_path = file if file else prompt_file(
 
@@ -105,7 +105,7 @@ def add_new_lua(file = None):
 
     if lua_path.suffix == ".zip":
 
-        lua_contents = read_lua_from_zip(lua_path)
+        lua_contents = read_lua_from_zip(lua_path, depotcache=depotcache)
         if lua_contents is None:
             print("Could not find .lua in ZIP file.")
             return LuaResult(None, None, LuaChoiceReturnCode.LOOP)
