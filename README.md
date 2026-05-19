@@ -13,7 +13,7 @@
 Download the latest stable version from the [Releases](https://github.com/bink-lab/sff/releases/latest) page.
 
 ### 🌙 Nightly Builds (Experimental)
-Get the absolute latest (potentially unstable) features by downloading the [**Nightly Release**](https://github.com/bink-lab/sff/releases/tag). 
+Get the absolute latest (potentially unstable) features by downloading the [**Nightly Release**](https://github.com/Bink-lab/SFF/releases?q=nightly&expanded=true). 
 
 These builds are automatically updated on every commit to the `main` branch and are named using the short commit SHA (e.g., `a1b2c3d`):
 - **Windows (Setup)**: `SteaMidra-Windows-Setup-SHA.exe`
