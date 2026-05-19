@@ -170,6 +170,9 @@ class Settings(Enum):
     STEAM_PATH = SettingItem(
         "steam_path", "Steam Installation Path", False, SettingCustomTypes.DIR
     )
+    DEFAULT_GAME_INSTALL_PATH = SettingItem(
+        "default_game_install_path", "Default Game Install Location", False, SettingCustomTypes.DIR
+    )
     STEAM_USER = SettingItem("steam_user", "Steam Username", False, str)
     STEAM_PASS = SettingItem("steam_pass", "Steam Password", True, str)
     STEAM32_ID = SettingItem("steam32_id", "Steam32 ID", False, str)
@@ -182,11 +185,13 @@ class Settings(Enum):
     STEAM_WEB_API_KEY = SettingItem("steam_web_api_key", "Steam Web API Key", True, str)
     PLAY_MUSIC = SettingItem("play_music", "Play Music", False, bool)
     THEME = SettingItem("theme", "Theme", False, str)
+    FLOATING_ICON_POSITION = SettingItem("floating_icon_position", "Floating Icon Position", False, str)
     ONLINE_FIX_USER = SettingItem("online_fix_user", "Online-fix.me Username", False, str)
     ONLINE_FIX_PASS = SettingItem("online_fix_pass", "Online-fix.me Password", True, str)
     PARALLEL_DOWNLOADS = SettingItem("parallel_downloads", "Parallel Download Workers", False, str)
     BACKUP_RETENTION = SettingItem("backup_retention", "Backup Retention Count", False, str)
     ENABLE_NOTIFICATIONS = SettingItem("enable_notifications", "Enable Desktop Notifications", False, bool)
+    MINIMIZE_TO_TRAY_ON_CLOSE = SettingItem("minimize_to_tray_on_close", "Minimize to Tray on Close", False, bool)
     USE_PARALLEL_DOWNLOADS = SettingItem("use_parallel_downloads", "Use Parallel Downloads", False, bool)
     ACTIVE_UNLOCKER_PER_GAME = SettingItem("active_unlocker_per_game", "Active DLC Unlocker Per Game", False, dict)
     DLC_UNLOCKER_CACHE_DIR = SettingItem("dlc_unlocker_cache", "DLC Unlocker Cache Directory", False, str)
