@@ -120,6 +120,7 @@ window.Settings = (function() {
         // Browse buttons for directory fields
         var browseMap = {
             'setting-steam-browse': { input: 'setting-steam-path', key: 'steam_path', label: 'Steam path' },
+            'setting-default-install-browse': { input: 'setting-default-install-path', key: 'default_game_install_path', label: 'Default game install location' },
             'setting-dlc-cache-browse': { input: 'setting-dlc-cache-dir', key: 'dlc_unlocker_cache', label: 'DLC cache directory' },
         };
         Object.keys(browseMap).forEach(function(btnId) {
@@ -349,6 +350,7 @@ window.Settings = (function() {
         // Checkbox toggles
         var checkboxes = {
             'setting-notifications': 'enable_notifications',
+            'setting-minimize-to-tray': 'minimize_to_tray_on_close',
             'setting-parallel': 'use_parallel_downloads',
             'setting-music': 'play_music',
             'setting-advanced-mode': 'advanced_mode',
@@ -432,6 +434,7 @@ window.Settings = (function() {
                 var settings = JSON.parse(json || '{}');
                 // Text inputs
                 _setInputVal('setting-steam-path', settings.steam_path);
+                _setInputVal('setting-default-install-path', settings.default_game_install_path);
                 _setInputVal('setting-steam-user', settings.steam_user);
                 _setInputVal('setting-steam32-id', settings.steam32_id);
                 _setInputVal('setting-onlinefix-user', settings.online_fix_user);
@@ -468,6 +471,7 @@ window.Settings = (function() {
                 } catch(e) {}
                 // Checkboxes
                 _setCheckbox('setting-notifications', settings.enable_notifications);
+                _setCheckbox('setting-minimize-to-tray', settings.minimize_to_tray_on_close || 'True');
                 _setCheckbox('setting-parallel', settings.use_parallel_downloads);
                 _setCheckbox('setting-music', settings.play_music);
                 _setCheckbox('setting-advanced-mode', settings.advanced_mode);
