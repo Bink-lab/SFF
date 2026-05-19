@@ -227,6 +227,8 @@ def main():
         window.run_tool(lambda: ui.process_lua_full(file=Path(p)))
     _floating.file_dropped.connect(_process_floating_drop)
     _floating.show()
+    _floating.exit_requested.connect(app.quit)
+    _floating.exit_requested.connect(window.force_quit)
     app.aboutToQuit.connect(_floating.save_position)
     tray.show_floating_requested.connect(_floating.show)
 

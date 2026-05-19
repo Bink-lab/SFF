@@ -30,6 +30,7 @@ class FloatingIcon(QWidget):
     Supports drag-and-drop for ZIP files.
     """
     file_dropped = pyqtSignal(str)
+    exit_requested = pyqtSignal()
 
     def __init__(self, icon_path=None, parent=None):
         super().__init__(parent)
@@ -40,10 +41,10 @@ class FloatingIcon(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAcceptDrops(True)
-        
+
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.label = QLabel(self)
         if icon_path and os.path.exists(icon_path):
             pixmap = QPixmap(icon_path)
@@ -51,9 +52,9 @@ class FloatingIcon(QWidget):
         else:
             self.label.setText("SFF")
             self.label.setStyleSheet("color: white; background-color: rgba(0, 0, 0, 150); border-radius: 10px; padding: 10px;")
-        
+
         self.layout.addWidget(self.label)
-        
+
         self._drag_pos = QPoint()
         self.setToolTip("Drag .zip here to process\nRight-click to hide")
         self._restore_position()
@@ -110,11 +111,11 @@ class FloatingIcon(QWidget):
         hide_action = QAction("Hide Icon", self)
         hide_action.triggered.connect(self.hide)
         menu.addAction(hide_action)
-        
+
         exit_action = QAction("Exit SteaMidra", self)
-        exit_action.triggered.connect(QApplication.instance().quit)
+        exit_action.triggered.connect(self.exit_requested.emit)
         menu.addAction(exit_action)
-        
+
         menu.exec(QCursor.pos())
 
     def dragEnterEvent(self, event):
