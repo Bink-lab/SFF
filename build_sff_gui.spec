@@ -208,6 +208,7 @@ exe = EXE(
     entitlements_file=None,
     icon=icon_path if os.path.exists(icon_path) else None,
     version='file_version_info.txt',
+    uac_admin=False,
 )
 
 coll = COLLECT(

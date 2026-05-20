@@ -21,6 +21,7 @@ Desktop.ini
 .factorypath
 *.sublime-project
 *.sublime-workspace
+.vs/
 
 # --- Python ---
 __pycache__/

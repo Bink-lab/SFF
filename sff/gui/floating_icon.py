@@ -17,7 +17,7 @@
 # along with SteaMidra.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
-from PyQt6.QtCore import Qt, QPoint, pyqtSignal
+from PyQt6.QtCore import Qt, QPoint, QEvent, pyqtSignal
 from PyQt6.QtGui import QPixmap, QAction, QCursor
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QMenu, QApplication
 
@@ -46,18 +46,80 @@ class FloatingIcon(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.label = QLabel(self)
+        self.label.setAcceptDrops(True)
+        self.label.installEventFilter(self)
         if icon_path and os.path.exists(icon_path):
             pixmap = QPixmap(icon_path)
             self.label.setPixmap(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            self._base_stylesheet = ""
         else:
             self.label.setText("SFF")
-            self.label.setStyleSheet("color: white; background-color: rgba(0, 0, 0, 150); border-radius: 10px; padding: 10px;")
+            self._base_stylesheet = "color: white; background-color: rgba(0, 0, 0, 150); border-radius: 10px; padding: 10px;"
+            self.label.setStyleSheet(self._base_stylesheet)
 
         self.layout.addWidget(self.label)
 
         self._drag_pos = QPoint()
         self.setToolTip("Drag .zip here to process\nRight-click to hide")
         self._restore_position()
+
+    def eventFilter(self, obj, event):
+        if obj is self.label:
+            if event.type() == QEvent.Type.DragEnter:
+                self._handle_drag_enter(event)
+                return event.isAccepted()
+            if event.type() == QEvent.Type.DragMove:
+                self._handle_drag_move(event)
+                return event.isAccepted()
+            if event.type() == QEvent.Type.DragLeave:
+                self._clear_drop_highlight()
+                event.accept()
+                return True
+            if event.type() == QEvent.Type.Drop:
+                self._handle_drop(event)
+                return event.isAccepted()
+        return super().eventFilter(obj, event)
+
+    def _zip_paths(self, event):
+        if not event.mimeData().hasUrls():
+            return []
+        return [
+            url.toLocalFile()
+            for url in event.mimeData().urls()
+            if url.toLocalFile().lower().endswith(".zip")
+        ]
+
+    def _set_drop_highlight(self):
+        highlight_style = "border: 2px solid #00ff00;"
+        if self._base_stylesheet:
+            self.label.setStyleSheet(self._base_stylesheet + " " + highlight_style)
+        else:
+            self.label.setStyleSheet(highlight_style)
+
+    def _clear_drop_highlight(self):
+        self.label.setStyleSheet(self._base_stylesheet)
+
+    def _handle_drag_enter(self, event):
+        if self._zip_paths(event):
+            self._set_drop_highlight()
+            event.acceptProposedAction()
+            return
+        event.ignore()
+
+    def _handle_drag_move(self, event):
+        if self._zip_paths(event):
+            event.acceptProposedAction()
+            return
+        event.ignore()
+
+    def _handle_drop(self, event):
+        self._clear_drop_highlight()
+        paths = self._zip_paths(event)
+        if paths:
+            self.file_dropped.emit(paths[0])
+            event.acceptProposedAction()
+            return
+        event.ignore()
 
     def _restore_position(self):
         raw = get_setting(Settings.FLOATING_ICON_POSITION)
@@ -119,27 +181,14 @@ class FloatingIcon(QWidget):
         menu.exec(QCursor.pos())
 
     def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            urls = event.mimeData().urls()
-            if any(url.toLocalFile().lower().endswith(".zip") for url in urls):
-                self.label.setStyleSheet("border: 2px solid #00ff00; border-radius: 10px;")
-                event.accept()
-                return
-        event.ignore()
+        self._handle_drag_enter(event)
+
+    def dragMoveEvent(self, event):
+        self._handle_drag_move(event)
 
     def dragLeaveEvent(self, event):
-        self.label.setStyleSheet("")
+        self._clear_drop_highlight()
         event.accept()
 
     def dropEvent(self, event):
-        self.label.setStyleSheet("")
-        urls = event.mimeData().urls()
-        if urls:
-            file_path = urls[0].toLocalFile()
-            if file_path.lower().endswith(".zip"):
-                self.file_dropped.emit(file_path)
-                event.accept()
-            else:
-                event.ignore()
-        else:
-            event.ignore()
+        self._handle_drop(event)
