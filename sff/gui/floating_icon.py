@@ -51,9 +51,11 @@ class FloatingIcon(QWidget):
         if icon_path and os.path.exists(icon_path):
             pixmap = QPixmap(icon_path)
             self.label.setPixmap(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            self._base_stylesheet = ""
         else:
             self.label.setText("SFF")
-            self.label.setStyleSheet("color: white; background-color: rgba(0, 0, 0, 150); border-radius: 10px; padding: 10px;")
+            self._base_stylesheet = "color: white; background-color: rgba(0, 0, 0, 150); border-radius: 10px; padding: 10px;"
+            self.label.setStyleSheet(self._base_stylesheet)
 
         self.layout.addWidget(self.label)
 
@@ -88,10 +90,14 @@ class FloatingIcon(QWidget):
         ]
 
     def _set_drop_highlight(self):
-        self.label.setStyleSheet("border: 2px solid #00ff00; border-radius: 10px;")
+        highlight_style = "border: 2px solid #00ff00;"
+        if self._base_stylesheet:
+            self.label.setStyleSheet(self._base_stylesheet + " " + highlight_style)
+        else:
+            self.label.setStyleSheet(highlight_style)
 
     def _clear_drop_highlight(self):
-        self.label.setStyleSheet("")
+        self.label.setStyleSheet(self._base_stylesheet)
 
     def _handle_drag_enter(self, event):
         if self._zip_paths(event):
