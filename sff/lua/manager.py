@@ -83,13 +83,13 @@ class LuaManager:
         self.last_endpoint: Optional[LuaEndpoint] = None
 
     def get_raw_lua(
-        self, choice: LuaChoice, override: Optional[Path] = None
+        self, choice: LuaChoice, override: Optional[Path] = None, depotcache = None
     ):
         while True:
             if choice == LuaChoice.SELECT_SAVED_LUA:
                 result = select_from_saved_luas(self.saved_lua, self.named_ids)
             elif choice == LuaChoice.ADD_LUA:
-                result = add_new_lua(override)
+                result = add_new_lua(override, depotcache=depotcache)
             elif choice == LuaChoice.AUTO_DOWNLOAD:
                 result = download_lua(self.saved_lua, self.os_type)
                 if result.endpoint is not None:
@@ -119,6 +119,7 @@ class LuaManager:
         self,
         override_choice = None,
         override_path = None,
+        depotcache = None,
     ):
         while True:
             choice = (
@@ -128,7 +129,7 @@ class LuaManager:
             )
             if choice is None:
                 return None
-            lua = self.get_raw_lua(choice, override_path)
+            lua = self.get_raw_lua(choice, override_path, depotcache=depotcache)
             if lua is None:
                 continue
             parsed = parse_lua_contents(lua.contents, lua.path)

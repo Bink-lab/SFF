@@ -1,6 +1,6 @@
 # SteaMidra - Steam game setup and manifest tool (SFF)
 
-# Copyright (c) 2025-2026 Midrag (https://github.com/Midrags)
+# Copyright (c) 2025-2026 Midrag (https://github.com/bink-lab)
 
 #
 
@@ -382,7 +382,7 @@ if __name__ == "__main__":
 
                         description='SteaMidra - set up games for Steam with Lua scripts, manifests, and LumaCore',
 
-                        epilog='https://github.com/Midrags/SFF/releases')
+                        epilog='https://github.com/bink-lab/sff/releases')
 
     parser.add_argument(
 

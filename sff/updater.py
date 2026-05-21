@@ -1,5 +1,5 @@
 # SteaMidra - Steam game setup and manifest tool (SFF)
-# Copyright (c) 2025-2026 Midrag (https://github.com/Midrags)
+# Copyright (c) 2025-2026 Midrag (https://github.com/bink-lab)
 #
 # This file is part of SteaMidra.
 #
@@ -24,7 +24,7 @@ import json
 from sff.http_utils import get_request
 from sff.strings import VERSION
 
-# Hardcoded to ensure updates always fetch from https://github.com/Midrags/SFF/releases
+# Hardcoded to ensure updates always fetch from https://github.com/bink-lab/sff/releases
 
 
 def _parse_version(tag):
@@ -52,8 +52,9 @@ def is_newer_version(remote_tag, current):
 
 class Updater:
 
-    _LATEST_URL = "https://api.github.com/repos/Midrags/SFF/releases/latest"
-    _RELEASES_URL = "https://api.github.com/repos/Midrags/SFF/releases"
+    _LATEST_URL = "https://api.github.com/repos/bink-lab/sff/releases/latest"
+    _RELEASES_URL = "https://api.github.com/repos/bink-lab/sff/releases"
+    _TAGS_URL = "https://api.github.com/repos/bink-lab/sff/tags"
     _HEADERS = {"Accept": "application/vnd.github.v3+json", "User-Agent": "SteaMidra-Updater"}
 
     @staticmethod
@@ -84,6 +85,23 @@ class Updater:
         return None
 
     @staticmethod
+    def get_latest_nightly():
+        # Nightly is a release with tag 'nightly'
+        list_resp = asyncio.run(
+            get_request(
+                Updater._RELEASES_URL,
+                "json",
+                headers=Updater._HEADERS,
+            )
+        )
+        if not isinstance(list_resp, list):
+            return None
+        for release in list_resp:
+            if release.get("tag_name") == "nightly":
+                return release
+        return None
+
+    @staticmethod
     def get_latest_prerelease():
         url = Updater._RELEASES_URL
         while True:
@@ -100,7 +118,23 @@ class Updater:
         return None
 
     @staticmethod
-    def update_available():
+    def update_available(channel="Stable (Normal)"):
+        from sff.storage.settings import get_setting, set_setting
+        from sff.structs import Settings
+
+        if channel == "Nightly (Continuous)":
+            release = Updater.get_latest_nightly()
+            if not release:
+                return False, None
+            
+            pub_at = release.get("published_at")
+            last_pub = get_setting(Settings.LAST_SEEN_NIGHTLY_TIMESTAMP)
+            
+            if pub_at and pub_at == last_pub:
+                return False, release
+                
+            return True, release
+        
         release = Updater.get_latest_stable()
         if not release:
             return False, None

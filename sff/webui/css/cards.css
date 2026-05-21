@@ -1,197 +1,154 @@
-/* SteaMidra — Game Card Grid + Hover Effects */
+/* SteaMidra — Game Card Grid (Ultra-Minimalist Redesign) */
 
 .game-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 32px;
     padding: 0;
 }
 
 .game-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 4px;
     overflow: hidden;
     cursor: pointer;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    transition: var(--transition-fluid);
     position: relative;
 }
 
 .game-card:hover {
-    transform: translateY(-4px) scale(1.02);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    border-color: var(--border-strong);
+    transform: translateY(-6px);
+    background: #050505;
 }
 
 .game-card-img {
     width: 100%;
-    height: 160px;
+    height: 180px;
     object-fit: cover;
-    background: var(--bg);
+    background: #000;
     display: block;
+    filter: contrast(1.1);
+    transition: var(--transition-fluid);
+}
+
+.game-card:hover .game-card-img {
+    filter: contrast(1); /* Reveal color on hover for "mouth watering" effect */
+    transform: scale(1.05);
 }
 
 .game-card-img-placeholder {
     width: 100%;
-    height: 160px;
-    background: var(--bg);
+    height: 180px;
+    background: #000;
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.3;
-}
-
-.game-card-img-placeholder svg {
-    width: 48px;
-    height: 48px;
-    stroke: var(--fg);
-    fill: none;
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    opacity: 0.1;
 }
 
 .game-card-badges {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 12px;
+    right: 12px;
     display: flex;
-    gap: 4px;
+    gap: 6px;
+    z-index: 2;
 }
 
 .badge {
-    padding: 2px 8px;
-    border-radius: 4px;
+    padding: 4px 10px;
+    border-radius: 2px;
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
+    background: #FFF;
+    color: #000;
 }
 
-.badge-available {
-    background: rgba(46, 204, 113, 0.9);
-    color: #fff;
-}
-
-.badge-downloaded {
-    background: rgba(52, 152, 219, 0.9);
-    color: #fff;
-}
+.badge-available { background: #FFF; color: #000; }
+.badge-downloaded { background: #333; color: #FFF; }
 
 .game-card-body {
-    padding: 12px 14px;
+    padding: 24px;
 }
 
 .game-card-name {
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin-bottom: 4px;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 6px;
+    color: var(--fg);
 }
 
 .game-card-appid {
     font-size: 11px;
-    opacity: 0.5;
+    font-weight: 600;
+    opacity: 0.2;
+    letter-spacing: 0.5px;
 }
 
 .game-card-meta {
     font-size: 11px;
-    opacity: 0.5;
-    margin-top: 2px;
+    opacity: 0.3;
+    margin-top: 4px;
 }
 
 .game-card-actions {
-    display: flex;
-    gap: 6px;
-    padding: 8px 14px 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+    gap: 8px;
+    padding: 0 20px 20px;
 }
 
 .game-card-actions .btn {
-    flex: 1;
-    padding: 6px 10px;
-    font-size: 12px;
-    text-align: center;
-}
-
-/* ── Library Grid — prevent button overflow ─────────── */
-
-#library-grid .game-card-actions {
-    flex-wrap: wrap;
-}
-
-#library-grid .game-card-actions .btn {
-    flex: 0 0 auto;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    padding: 8px 6px;
+    min-height: 32px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ── List View ──────────────────────────────────────── */
 
-.game-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
 .game-list-item {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 10px 14px;
+    gap: 20px;
+    padding: 16px;
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: var(--transition-fast);
 }
 
 .game-list-item:hover {
-    background: var(--btn-bg);
+    border-color: var(--border-strong);
+    background: #000;
+    transform: translateX(4px);
 }
 
 .game-list-thumb {
-    width: 80px;
-    height: 45px;
+    width: 100px;
+    height: 56px;
     object-fit: cover;
-    border-radius: 4px;
-    background: var(--bg);
-    flex-shrink: 0;
+    border-radius: 2px;
+    transition: var(--transition-fast);
 }
 
-.game-list-info {
-    flex: 1;
-}
-
-.game-list-name {
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.game-list-appid {
-    font-size: 11px;
-    opacity: 0.5;
-}
-
-.game-list-actions {
-    display: flex;
-    gap: 6px;
+.game-list-item:hover .game-list-thumb {
+    filter: none;
 }
 
 /* ── Card stagger animation ─────────────────────────── */
 
 .game-card.stagger-in {
-    animation: cardStaggerIn 0.3s ease forwards;
+    animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     opacity: 0;
-}
-
-@keyframes cardStaggerIn {
-    from {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }

@@ -42,7 +42,8 @@ QLineEdit, QComboBox {
     background-color: #fff;
     border: 1px solid #ccc;
     border-radius: 3px;
-    padding: 4px;
+    padding: 8px 12px;
+    margin: 5px 8px;
     min-height: 20px;
     color: #111;
 }
@@ -52,7 +53,8 @@ QTextEdit, QPlainTextEdit {
     background-color: #fff;
     border: 1px solid #ccc;
     border-radius: 3px;
-    font-family: Consolas, monospace;
+    padding: 6px;
+    margin: 5px 8px;
     font-size: 12px;
     color: #111;
 }
@@ -102,7 +104,8 @@ QLineEdit, QComboBox {
     background-color: #3c3c3c;
     border: 1px solid #555;
     border-radius: 3px;
-    padding: 4px;
+    padding: 8px 12px;
+    margin: 5px 8px;
     min-height: 20px;
     color: #e8e8e8;
 }
@@ -112,7 +115,8 @@ QTextEdit, QPlainTextEdit {
     background-color: #1e1e1e;
     border: 1px solid #555;
     border-radius: 3px;
-    font-family: Consolas, monospace;
+    padding: 6px;
+    margin: 5px 8px;
     font-size: 12px;
     color: #e8e8e8;
 }
@@ -154,13 +158,15 @@ QPushButton:pressed {{ background-color: {accent}; color: #fff; }}
 QPushButton:disabled {{ background-color: {bg}; color: {border}; }}
 QLineEdit, QComboBox {{
     background-color: {input_bg}; border: 1px solid {border}; border-radius: 3px;
-    padding: 4px; min-height: 20px; color: {fg};
+    padding: 8px 12px;
+    margin: 5px 8px; min-height: 20px; color: {fg};
 }}
 QComboBox::drop-down {{ border: none; width: 24px; min-width: 24px; }}
 QComboBox QAbstractItemView {{ background-color: {input_bg}; color: {fg}; }}
 QTextEdit, QPlainTextEdit {{
     background-color: {input_bg}; border: 1px solid {border}; border-radius: 3px;
-    font-family: Consolas, monospace; font-size: 12px; color: {fg};
+    padding: 6px;
+    margin: 5px 8px; font-size: 12px; color: {fg};
 }}
 QMenuBar {{ background-color: {btn_bg}; color: {fg}; }}
 QMenuBar::item:selected {{ background-color: {btn_hover}; color: #fff; }}
@@ -174,7 +180,7 @@ QLabel {{ color: {fg}; }}
 QDialog {{ background-color: {bg}; color: {fg}; }}
 QTabWidget::pane {{ border: 1px solid {border}; background-color: {bg}; }}
 QTabBar::tab {{
-    background-color: {btn_bg}; color: {fg}; padding: 8px 16px;
+    background-color: {btn_bg}; color: {fg}; padding: 10px 20px;
     border: 1px solid {border}; border-bottom: none; border-radius: 3px 3px 0 0;
     margin-right: 2px;
 }}

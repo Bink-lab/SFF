@@ -43,6 +43,7 @@ class TrayIcon(QObject):
     """
 
     show_requested = pyqtSignal()
+    show_floating_requested = pyqtSignal()
     exit_requested = pyqtSignal()
 
     def __init__(self, parent=None, icon_path = ""):
@@ -74,6 +75,11 @@ class TrayIcon(QObject):
         show_action = QAction("Show SteaMidra", self._menu)
         show_action.triggered.connect(self.show_requested.emit)
         self._menu.addAction(show_action)
+        
+        show_floating_action = QAction("Show Floating Icon", self._menu)
+        show_floating_action.triggered.connect(self.show_floating_requested.emit)
+        self._menu.addAction(show_floating_action)
+
         self._menu.addSeparator()
         # placeholder for recent games - populated dynamically
         self._recent_menu = self._menu.addMenu("Recent Games")
