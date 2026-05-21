@@ -23,6 +23,10 @@ Desktop.ini
 *.sublime-workspace
 .vs/
 
+# --- .NET / C# ---
+DepotDL.CLI/bin/
+DepotDL.CLI/obj/
+
 # --- Python ---
 __pycache__/
 *.py[cod]
