@@ -146,11 +146,9 @@ class SFFMainWindow(QMainWindow):
         )
         self._web_ui_active = True
         self._web_ui_loaded = False
-        
         from sff.download_manager import DownloadManager
         self._download_manager = DownloadManager()
         self.ui.download_manager = self._download_manager
-
         # ── Menu bar ─────────────────────────────────────────────
         menubar = self.menuBar()
         settings_action = menubar.addAction(T("Settings"))

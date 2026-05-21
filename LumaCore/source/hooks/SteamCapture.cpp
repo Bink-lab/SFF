@@ -15,28 +15,42 @@ namespace {
 
     // ── X-macro lists ────────────────────────────────────────────────────────
     // One-shot int3: on hit, ctx->Rcx stored to the named output variable.
-    #define CAPTURE_LIST(X)                          \
+    #define VEH_GRAB_LIST(X)                         \
         X(GetAppIDForCurrentPipe, g_steamEngine)     \
         X(GetAppDataFromAppInfo,  g_pCAppInfoCache)  \
         X(MarkLicenseAsChanged,   g_pCUser)          \
         X(GetPackageInfo,         g_pCPackageInfo)
 
     // Resolve-only (no int3).
-    #define LOCATE_LIST(X)               \
+    #define VEH_TRACK_LIST(X)            \
         X(CUtlBufferEnsureCapacity)      \
         X(CUtlMemoryGrow)               \
         X(ProcessPendingLicenseUpdates)
 
     // ── generated declarations ───────────────────────────────────────────────
-    CAPTURE_LIST(VEH_DECL_CAPTURE)
-    LOCATE_LIST(VEH_DECL_RESOLVE)
+    VEH_GRAB_LIST(VEH_DECL_CAPTURE)
+    VEH_TRACK_LIST(VEH_DECL_RESOLVE)
 
     uint8_t*  g_spawnProcessTarget;
     PVOID     g_vehHandle;
 
     // Assumes one game at a time.  Set by SpawnProcess VEH when -onlinefix
     // is detected; cleared when a non-onlinefix game launches.
-    AppId_t   g_OnlineFixRealAppId;
+    std::atomic<AppId_t> g_OnlineFixRealAppId{0};
+
+    // Returns true when flag appears as a whole word in cmd (space- or end-delimited).
+    // Prevents substring matches like "-onlinefixpatch" triggering the -onlinefix path.
+    static bool HasExactFlag(const char* cmd, const char* flag) {
+        const char* p = cmd;
+        size_t n = strlen(flag);
+        while ((p = strstr(p, flag))) {
+            bool startOk = (p == cmd || p[-1] == ' ');
+            bool endOk   = (p[n] == '\0' || p[n] == ' ');
+            if (startOk && endOk) return true;
+            p += n;
+        }
+        return false;
+    }
 
     std::unordered_map<AppId_t, std::string> g_GameNameCache;
 
@@ -75,13 +89,13 @@ namespace {
                 const char* cmdLine = reinterpret_cast<const char*>(ctx->R8);
 
                 if (LuaLoader::HasDepot(appId) && cmdLine
-                    && strstr(cmdLine, "-onlinefix")) {
-                    g_OnlineFixRealAppId = appId;
+                    && HasExactFlag(cmdLine, "-onlinefix")) {
+                    g_OnlineFixRealAppId.store(appId, std::memory_order_release);
                     *pGameID = kOnlineFixAppId;
                     LOG_MISC_INFO("SpawnProcess: appid {} -> {}, cmd=\"{}\"",
                                   appId, kOnlineFixAppId, cmdLine);
                 } else {
-                    g_OnlineFixRealAppId = 0;
+                    g_OnlineFixRealAppId.store(0, std::memory_order_release);
                 }
                 return EXCEPTION_CONTINUE_EXECUTION;
             }
@@ -103,12 +117,26 @@ namespace SteamCapture {
     void Install() {
         if (g_vehHandle) return;
 
-        LOCATE_LIST(VEH_LOCATE)
-        CAPTURE_LIST(VEH_ARM)
+        VEH_TRACK_LIST(VEH_LOCATE)
 
-        if (auto* p = FIND_SIG(diversion_hModule, SpawnProcess)) {
-            g_spawnProcessTarget = static_cast<uint8_t*>(p);
-            VehUtil::ArmInt3(p);
+        ARM_CAPTURE_D(GetAppIDForCurrentPipe, g_steamEngine);
+        ARM_CAPTURE_STR_D(GetAppDataFromAppInfo, g_pCAppInfoCache,
+                          GetAppDataFromAppInfoStrSigs, GetAppDataFromAppInfoSigs);
+        ARM_CAPTURE_D(MarkLicenseAsChanged, g_pCUser);
+        ARM_CAPTURE_D(GetPackageInfo, g_pCPackageInfo);
+
+        {
+            void* _sp_ = nullptr;
+            for (const auto& _s_ : SpawnProcessStrSigs) {
+                _sp_ = StringFind::FindFunction(diversion_hModule,
+                                               _s_.str, _s_.occurrence);
+                if (_sp_) break;
+            }
+            if (!_sp_) _sp_ = FIND_SIG(diversion_hModule, SpawnProcess);
+            if (_sp_) {
+                g_spawnProcessTarget = static_cast<uint8_t*>(_sp_);
+                VehUtil::ArmInt3(_sp_);
+            }
         }
 
         if (!g_captures.empty() || g_spawnProcessTarget)
@@ -127,8 +155,8 @@ namespace SteamCapture {
             VehUtil::RestoreByte(g_spawnProcessTarget, 0x48);
         g_spawnProcessTarget = nullptr;
 
-        LOCATE_LIST(VEH_ZERO_RESOLVE)
-        g_OnlineFixRealAppId = 0;
+        VEH_TRACK_LIST(VEH_ZERO_RESOLVE)
+        g_OnlineFixRealAppId.store(0, std::memory_order_relaxed);
         g_GameNameCache.clear();
     }
 
@@ -147,7 +175,8 @@ namespace SteamCapture {
     }
 
     AppId_t ResolveAppId() {
-        if (g_OnlineFixRealAppId) return g_OnlineFixRealAppId;
+        AppId_t onlineFix = g_OnlineFixRealAppId.load(std::memory_order_acquire);
+        if (onlineFix) return onlineFix;
         return GetAppIDForCurrentPipe();
     }
 
@@ -224,6 +253,7 @@ namespace SteamCapture {
                 pPkg->AppIdVec.m_Memory.m_pMemory[oldSize + i] = additions[i];
                 LOG_PACKAGE_DEBUG("NotifyLicenseChanged: inserted AppId {} at [{}]", additions[i], oldSize + i);
             }
+            pPkg->AppIdVec.m_Size = static_cast<uint32>(oldSize + additions.size());
         }
 
         if (additions.empty() && removedCount == 0) {
