@@ -1,11 +1,21 @@
 @echo off
-echo Building DepotDL.CLI...
-dotnet build -c Release
+pushd "%~dp0"
+echo Publishing DepotDL.CLI as self-contained single-file exe...
+dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
 if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Build failed!
-    pause
+    echo [ERROR] Publish failed!
+    popd
+    if /I not "%CI%"=="true" pause
     exit /b %ERRORLEVEL%
 )
-echo [SUCCESS] Build succeeded!
-echo Executable is located in: bin\Release\net9.0\DepotDL.CLI.exe
-pause
+xcopy /Y "..\third_party\DDMod\*.*" "bin\Release\net9.0\win-x64\publish\" >nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to copy DepotDownloaderMod files!
+    popd
+    if /I not "%CI%"=="true" pause
+    exit /b %ERRORLEVEL%
+)
+echo [SUCCESS] Publish succeeded!
+echo Files are located in: bin\Release\net9.0\win-x64\publish\
+popd
+if /I not "%CI%"=="true" pause

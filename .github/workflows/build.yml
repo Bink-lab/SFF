@@ -21,6 +21,11 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
@@ -65,6 +70,15 @@ jobs:
         run: |
           makensis /DVERSION=${{ steps.build_info.outputs.SHA }} installer.nsi
 
+      - name: Build DepotDL CLI
+        working-directory: DepotDL.CLI
+        run: .\build.bat
+
+      - name: Package DepotDL CLI
+        shell: pwsh
+        run: |
+          Compress-Archive -Path DepotDL.CLI/bin/Release/net9.0/win-x64/publish/* -DestinationPath DepotDL.CLI-Windows-x64-${{ steps.build_info.outputs.SHA }}.zip -Force
+
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
@@ -76,6 +90,12 @@ jobs:
         with:
           name: SteaMidra-Windows-Portable-${{ steps.build_info.outputs.SHA }}
           path: dist/SteaMidra_GUI/
+
+      - name: Upload DepotDL CLI
+        uses: actions/upload-artifact@v4
+        with:
+          name: DepotDL.CLI-Windows-x64-${{ steps.build_info.outputs.SHA }}
+          path: DepotDL.CLI-Windows-x64-${{ steps.build_info.outputs.SHA }}.zip
 
   build-linux:
     name: Build Linux (AppImage)
@@ -232,6 +252,10 @@ jobs:
           # Linux AppImage
           APPIMAGE_SRC=$(find artifacts -name "SteaMidra-*-x86_64.AppImage" | head -n 1)
           cp "$APPIMAGE_SRC" "release_assets/SteaMidra-Linux-AppImage-$SHA.AppImage"
+
+          # DepotDL CLI
+          DEPOTDL_SRC=$(find artifacts -name "DepotDL.CLI-Windows-x64-*.zip" | head -n 1)
+          cp "$DEPOTDL_SRC" "release_assets/DepotDL.CLI-Windows-x64-$SHA.zip"
           
           # Zip the Portable Windows build
           PORTABLE_DIR=$(find artifacts -type d -name "SteaMidra-Windows-Portable-*" | head -n 1)
