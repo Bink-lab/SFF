@@ -589,7 +589,14 @@ namespace DepotDL.CLI
                         Console.Clear();
                         session.LuaPath = game.LuaPath;
                         session.OutputDir = game.OutputDir;
-                        
+
+                        // Restore DownloadBaseDir from OutputDir so ParseLuaFileIntoSession recomputes correctly
+                        var parentDir = Path.GetDirectoryName(game.OutputDir);
+                        if (!string.IsNullOrEmpty(parentDir))
+                        {
+                            session.DownloadBaseDir = parentDir;
+                        }
+
                         ParseLuaFileIntoSession(session);
                         
                         var restoredDepots = new List<DepotInfo>();
@@ -624,9 +631,16 @@ namespace DepotDL.CLI
                         string? input = Console.ReadLine()?.Trim().ToLower();
                         if (input == "y" || input == "yes")
                         {
-                            LibraryManager.RobustDeleteDirectory(game.OutputDir);
-                            LibraryManager.RemoveGame(game.AppId);
-                            PromptText("UNINSTALL", "Pruned game entry and files cleared. Press Enter.", "");
+                            var deleted = LibraryManager.RobustDeleteDirectory(game.OutputDir);
+                            if (deleted)
+                            {
+                                LibraryManager.RemoveGame(game.AppId);
+                                PromptText("UNINSTALL", "Pruned game entry and files cleared. Press Enter.", "");
+                            }
+                            else
+                            {
+                                PromptText("UNINSTALL FAILED", "Could not delete directory. Files may be in use. Press Enter.", "");
+                            }
                             return false;
                         }
                     }
@@ -775,12 +789,29 @@ namespace DepotDL.CLI
             string? input = Console.ReadLine()?.Trim().ToLower();
             if (input == "y" || input == "yes")
             {
+                int successCount = 0;
+                int failCount = 0;
                 foreach (var g in selected)
                 {
-                    LibraryManager.RobustDeleteDirectory(g.OutputDir);
-                    LibraryManager.RemoveGame(g.AppId);
+                    var deleted = LibraryManager.RobustDeleteDirectory(g.OutputDir);
+                    if (deleted)
+                    {
+                        LibraryManager.RemoveGame(g.AppId);
+                        successCount++;
+                    }
+                    else
+                    {
+                        failCount++;
+                    }
                 }
-                PromptText("BULK UNINSTALL", "Bulk uninstallation complete successfully. Press Enter.", "");
+                if (failCount == 0)
+                {
+                    PromptText("BULK UNINSTALL", "Bulk uninstallation complete successfully. Press Enter.", "");
+                }
+                else
+                {
+                    PromptText("BULK UNINSTALL", $"Completed with {successCount} successful, {failCount} failed. Press Enter.", "");
+                }
             }
         }
 
@@ -833,6 +864,14 @@ namespace DepotDL.CLI
                     OutputDir = game.OutputDir,
                     ManifestsDir = session.ManifestsDir
                 };
+
+                // Restore DownloadBaseDir from OutputDir so ParseLuaFileIntoSession recomputes correctly
+                var parentDir = Path.GetDirectoryName(game.OutputDir);
+                if (!string.IsNullOrEmpty(parentDir))
+                {
+                    batchSession.DownloadBaseDir = parentDir;
+                }
+
                 ParseLuaFileIntoSession(batchSession);
 
                 var restoredDepots = new List<DepotInfo>();

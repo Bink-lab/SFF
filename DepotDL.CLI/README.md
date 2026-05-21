@@ -3,14 +3,22 @@
 A simple C# command-line tool that parses decryption keys and depot mappings from Lua files, matches local manifest files, and calls DepotDownloaderMod to download games.
 
 ## Requirements
-- .NET 9 SDK or Runtime
+- **To build from source**: .NET 9 SDK
+- **To run the published self-contained binary**: Windows x64 with no separate .NET runtime required (the project is published as self-contained for win-x64 RID)
 
 ## How to Build
-Run `build.bat` (Windows) or `build.sh` (Linux/macOS) to build the release binary. The compiled executable will be written to `bin/Release/net9.0/`.
+Run `build.bat` (Windows) or `build.sh` (Linux/macOS) to build the release binary as a self-contained single-file executable.
+
+- **Windows**: The compiled executable will be written to `bin/Release/net9.0/win-x64/publish/`
+- **Linux**: The compiled executable will be written to `bin/Release/net9.0/linux-x64/publish/`
 
 Alternatively, build manually using:
 ```bash
-dotnet build -c Release
+# Windows
+dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+
+# Linux
+dotnet publish -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true
 ```
 
 ## How to Use
@@ -19,7 +27,11 @@ dotnet build -c Release
 If you run the tool without any command line arguments, it launches a colored, interactive Terminal User Interface (TUI):
 
 ```bash
-DepotDL.CLI
+# Windows
+.\DepotDL.CLI.exe
+
+# Linux/macOS
+./DepotDL.CLI
 ```
 
 The TUI will walk you through:

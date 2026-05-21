@@ -323,7 +323,12 @@ namespace DepotDL.CLI
                 }
 
                 DownloadTui.WriteFinal(!hadErrors);
-                
+
+                if (hadErrors)
+                {
+                    return 1;
+                }
+
                 try
                 {
                     string gameName = Path.GetFileNameWithoutExtension(luaPath);
