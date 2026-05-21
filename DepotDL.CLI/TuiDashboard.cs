@@ -21,6 +21,7 @@ namespace DepotDL.CLI
                 else if (Directory.Exists("../depotcache")) defaultManifestsDir = "../depotcache";
             }
             session.ManifestsDir = defaultManifestsDir;
+            IniSettings.LoadInto(session);
 
             Console.Clear();
             Console.ForegroundColor = ConsoleColor.Cyan;
@@ -47,6 +48,8 @@ namespace DepotDL.CLI
                 if (manifestsVal.Length > 21) manifestsVal = "..." + manifestsVal.Substring(manifestsVal.Length - 18);
                 string outputVal = string.IsNullOrEmpty(session.OutputDir) ? "[Auto]" : session.OutputDir;
                 if (outputVal.Length > 21) outputVal = "..." + outputVal.Substring(outputVal.Length - 18);
+                string outputBaseVal = string.IsNullOrEmpty(session.DownloadBaseDir) ? "[Auto]" : session.DownloadBaseDir;
+                if (outputBaseVal.Length > 21) outputBaseVal = "..." + outputBaseVal.Substring(outputBaseVal.Length - 18);
                 string libraryStats = $"{verified}/{totalCount} Games";
 
                 var leftItems = new List<string>
@@ -67,6 +70,7 @@ namespace DepotDL.CLI
                     ("Selected Depots:", depotSel, session.SelectedDepots.Count == 0 ? ConsoleColor.DarkGray : ConsoleColor.White),
                     ("Manifests Cache:", manifestsVal, ConsoleColor.Gray),
                     ("Download Folder:", outputVal, string.IsNullOrEmpty(session.OutputDir) ? ConsoleColor.DarkGray : ConsoleColor.Gray),
+                    ("Output Base:", outputBaseVal, string.IsNullOrEmpty(session.DownloadBaseDir) ? ConsoleColor.DarkGray : ConsoleColor.Gray),
                     ("Library Index:", libraryStats, missingCount > 0 ? ConsoleColor.Yellow : ConsoleColor.Green)
                 };
 
@@ -176,6 +180,7 @@ namespace DepotDL.CLI
                 }
                 else if (key == ConsoleKey.Escape)
                 {
+                    SaveSession(session);
                     Console.Clear();
                     return 0;
                 }
@@ -184,6 +189,7 @@ namespace DepotDL.CLI
                     if (menuIndex == 0)
                     {
                         RunLibraryDashboard(session, ddmodPath, dotnetPath);
+                        SaveSession(session);
                         verified = LibraryManager.VerifyLibraryOnStartup(out totalCount, out missingCount);
                     }
                     else if (menuIndex == 1)
@@ -224,15 +230,11 @@ namespace DepotDL.CLI
 
                         if (string.IsNullOrEmpty(session.OutputDir))
                         {
-                            session.OutputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads", GetGameName(session));
+                            session.OutputDir = BuildOutputDir(session, GetGameName(session));
                         }
+                        SaveSession(session);
 
                         Console.Clear();
-                        Console.ForegroundColor = ConsoleColor.Cyan;
-                        Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
-                        Console.WriteLine("║                         INITIALIZING DOWNLOAD ACTIONS                        ║");
-                        Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
-                        Console.ResetColor();
                         
                         int exitCode = Program.TriggerDownloadProcess(session.LuaPath, session.ManifestsDir, session.OutputDir, ddmodPath, dotnetPath, session.SelectedDepots);
                         
@@ -253,6 +255,7 @@ namespace DepotDL.CLI
                     }
                     else if (menuIndex == 6)
                     {
+                        SaveSession(session);
                         Console.Clear();
                         return 0;
                     }
@@ -1211,9 +1214,33 @@ namespace DepotDL.CLI
         private static void RunZipImportAction(TuiSession session)
         {
             Console.Clear();
+            var sourceOptions = new List<string>
+            {
+                "Use local .zip file",
+                "Request package from Ryuu API",
+                "[Cancel]"
+            };
+
+            int sourceIndex = RunSelector("SELECT ZIP SOURCE", sourceOptions);
+            if (sourceIndex == -1 || sourceOptions[sourceIndex] == "[Cancel]")
+            {
+                return;
+            }
+
+            string? zipPath = sourceIndex == 0 ? ResolveLocalZipPath() : RequestRyuuZipPackage(session);
+            if (string.IsNullOrEmpty(zipPath))
+            {
+                return;
+            }
+
+            ImportZipIntoSession(session, zipPath);
+        }
+
+        private static string? ResolveLocalZipPath()
+        {
             string? zipPath = null;
             bool isWindows = OperatingSystem.IsWindows();
-            
+
             if (isWindows)
             {
                 var options = new List<string>
@@ -1223,45 +1250,102 @@ namespace DepotDL.CLI
                     "[Cancel]"
                 };
                 int selIndex = RunSelector("SELECT ZIP IMPORT METHOD", options);
-                if (selIndex == -1 || options[selIndex] == "[Cancel]") return;
-                
+                if (selIndex == -1 || options[selIndex] == "[Cancel]") return null;
+
                 if (selIndex == 0)
                 {
                     Console.Clear();
                     zipPath = DialogHelpers.OpenWindowsFileDialog("Select ZIP Archive Containing Configs/Manifests", "ZIP Archives (*.zip)|*.zip|All Files (*.*)|*.*");
                 }
             }
-            
+
             if (zipPath == null)
             {
                 zipPath = PromptText("ZIP IMPORT", "Enter manual zip file path:", "");
                 if (string.IsNullOrEmpty(zipPath) || !File.Exists(zipPath))
                 {
                     PromptText("ZIP IMPORT", "Invalid or non-existent zip file path. Press Enter.", "");
-                    return;
+                    return null;
                 }
             }
 
+            return zipPath;
+        }
+
+        private static string? RequestRyuuZipPackage(TuiSession session)
+        {
+            string defaultAppId = session.AppId ?? "";
+            string? appId = PromptText("RYUU API", "Enter Steam App ID:", defaultAppId);
+            if (string.IsNullOrWhiteSpace(appId))
+            {
+                return null;
+            }
+
+            string? apiKey = PromptText("RYUU API", "Enter Ryuu API key:", session.RyuuApiKey ?? "");
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                PromptText("RYUU API", "Ryuu API key is required. Press Enter.", "");
+                return null;
+            }
+
+            session.RyuuApiKey = apiKey.Trim();
+            SaveSession(session);
+
+            Console.Clear();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"[Ryuu] Requesting ZIP package for App ID {appId.Trim()}...");
+            Console.ResetColor();
+
+            try
+            {
+                var result = RyuuApiClient.DownloadPackage(appId.Trim(), session.RyuuApiKey!);
+                if (!result.HasZip || string.IsNullOrEmpty(result.ZipPath))
+                {
+                    PromptText("RYUU API", $"{result.Message} Press Enter.", "");
+                    return null;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"[Ryuu] {result.Message}");
+                Console.ResetColor();
+                return result.ZipPath;
+            }
+            catch (Exception ex)
+            {
+                PromptText("RYUU API", $"{ex.Message} Press Enter.", "");
+                return null;
+            }
+        }
+
+        private static void ImportZipIntoSession(TuiSession session, string zipPath)
+        {
             Console.Clear();
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine($"[Extract] Scanning and extracting archive: {zipPath}...");
             Console.ResetColor();
             
-            var result = ZipHelper.ImportZip(zipPath, session.ManifestsDir ?? "manifests");
+            var result = ZipHelper.ImportZip(zipPath);
+            if (!string.IsNullOrEmpty(result.ManifestsDir))
+            {
+                session.ManifestsDir = result.ManifestsDir;
+                session.ManifestsDirConfigured = false;
+            }
             
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"\n[Extraction Complete]");
             Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"  - Extracted Lua Configurations: {result.luaCount}");
-            Console.WriteLine($"  - Extracted Steam Manifests:    {result.manifestCount}");
+            Console.WriteLine($"  - Import Folder:                {result.ImportDir}");
+            Console.WriteLine($"  - Extracted Lua Configurations: {result.LuaCount}");
+            Console.WriteLine($"  - Extracted Steam Manifests:    {result.ManifestCount}");
             Console.ResetColor();
             
-            if (!string.IsNullOrEmpty(result.firstLuaPath))
+            if (!string.IsNullOrEmpty(result.FirstLuaPath))
             {
-                session.LuaPath = result.firstLuaPath;
+                session.LuaPath = result.FirstLuaPath;
                 ParseLuaFileIntoSession(session);
+                SaveSession(session);
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"\n[Auto-Load] Auto-loaded game configuration: {Path.GetFileName(result.firstLuaPath)}");
+                Console.WriteLine($"\n[Auto-Load] Auto-loaded game configuration: {Path.GetFileName(result.FirstLuaPath)}");
                 Console.ResetColor();
             }
             
@@ -1319,6 +1403,7 @@ namespace DepotDL.CLI
             {
                 session.LuaPath = selectedPath;
                 ParseLuaFileIntoSession(session);
+                SaveSession(session);
             }
         }
 
@@ -1350,6 +1435,8 @@ namespace DepotDL.CLI
                     return;
                 }
                 session.ManifestsDir = selectedPath;
+                session.ManifestsDirConfigured = true;
+                SaveSession(session);
             }
             else if (options[selIndex] == "[Type manual folder path...]")
             {
@@ -1359,6 +1446,8 @@ namespace DepotDL.CLI
                     return;
                 }
                 session.ManifestsDir = selectedPath;
+                session.ManifestsDirConfigured = true;
+                SaveSession(session);
             }
         }
 
@@ -1445,12 +1534,9 @@ namespace DepotDL.CLI
             if (!string.IsNullOrEmpty(selectedPath))
             {
                 string gameName = GetGameName(session);
-                string lastFolder = Path.GetFileName(selectedPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                if (!string.Equals(lastFolder, gameName, StringComparison.OrdinalIgnoreCase))
-                {
-                    selectedPath = Path.Combine(selectedPath, gameName);
-                }
-                session.OutputDir = selectedPath;
+                session.DownloadBaseDir = NormalizeDownloadBaseDir(selectedPath, gameName);
+                session.OutputDir = Path.Combine(session.DownloadBaseDir, gameName);
+                SaveSession(session);
             }
         }
 
@@ -1472,13 +1558,34 @@ namespace DepotDL.CLI
             string gameName = Path.GetFileNameWithoutExtension(session.LuaPath);
             if (string.IsNullOrEmpty(gameName)) gameName = $"App_{appId}";
 
-            if (string.IsNullOrEmpty(session.OutputDir) || 
-                session.OutputDir.Contains("App_Game") || 
-                session.OutputDir.Contains("App_") || 
-                session.OutputDir.EndsWith("downloads", StringComparison.OrdinalIgnoreCase))
+            session.OutputDir = BuildOutputDir(session, gameName);
+        }
+
+        private static string BuildOutputDir(TuiSession session, string gameName)
+        {
+            string baseDir = string.IsNullOrEmpty(session.DownloadBaseDir)
+                ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads")
+                : session.DownloadBaseDir;
+
+            return Path.Combine(baseDir, gameName);
+        }
+
+        private static string NormalizeDownloadBaseDir(string selectedPath, string gameName)
+        {
+            string trimmedPath = selectedPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string lastFolder = Path.GetFileName(trimmedPath);
+
+            if (string.Equals(lastFolder, gameName, StringComparison.OrdinalIgnoreCase))
             {
-                session.OutputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads", gameName);
+                return Path.GetDirectoryName(trimmedPath) ?? trimmedPath;
             }
+
+            return trimmedPath;
+        }
+
+        private static void SaveSession(TuiSession session)
+        {
+            IniSettings.Save(session);
         }
 
         private static int RunSelector(string prompt, List<string> options)
@@ -1651,6 +1758,15 @@ namespace DepotDL.CLI
                         continue;
 
                     files.AddRange(Directory.GetFiles(sub, "*.lua", SearchOption.TopDirectoryOnly));
+                }
+
+                var importsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "imports");
+                if (Directory.Exists(importsDir))
+                {
+                    foreach (var gameDir in Directory.GetDirectories(importsDir))
+                    {
+                        files.AddRange(Directory.GetFiles(gameDir, "*.lua", SearchOption.TopDirectoryOnly));
+                    }
                 }
             }
             catch { }

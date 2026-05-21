@@ -132,9 +132,6 @@ namespace DepotDL.CLI
 
         private static int ProcessDownload(string luaPath, string? manifestsDir, string? outputPath, string ddmodPath, string dotnetPath, List<DepotInfo>? selectedDepots = null)
         {
-            void LogInfo(string message) => WriteColored(message, ConsoleColor.Cyan);
-            void LogSuccess(string message) => WriteColored(message, ConsoleColor.Green);
-            void LogWarning(string message) => WriteColored(message, ConsoleColor.Yellow);
             void LogError(string message) => WriteColored(message, ConsoleColor.Red);
 
             // Register console cancel handlers for safe VDF cleanup
@@ -184,9 +181,9 @@ namespace DepotDL.CLI
                 }
 
                 var manifestFiles = new Dictionary<string, string>();
+                string? manifestScanStatus = null;
                 if (!string.IsNullOrEmpty(manifestsDir) && Directory.Exists(manifestsDir))
                 {
-                    LogInfo($"[Scan] Scanning manifest files in: {manifestsDir}...");
                     var files = Directory.GetFiles(manifestsDir, "*.manifest");
                     foreach (var file in files)
                     {
@@ -203,6 +200,7 @@ namespace DepotDL.CLI
                             manifestFiles[name] = file;
                         }
                     }
+                    manifestScanStatus = $"{files.Length} local manifests in {manifestsDir}";
                 }
 
                 var tempKeysContent = new List<string>();
@@ -216,7 +214,6 @@ namespace DepotDL.CLI
 
                 _tempKeysPath = Path.Combine(Path.GetTempPath(), $"depotdl_keys_{Guid.NewGuid():N}.vdf");
                 File.WriteAllLines(_tempKeysPath, tempKeysContent);
-                LogInfo($"[Temp] Wrote temporary keys file: {_tempKeysPath}");
 
                 if (string.IsNullOrEmpty(outputPath))
                 {
@@ -224,18 +221,23 @@ namespace DepotDL.CLI
                 }
                 outputPath = Path.GetFullPath(outputPath);
                 Directory.CreateDirectory(outputPath);
+                DownloadTui.WriteHeader(appId, depots.Count, outputPath);
+                if (manifestScanStatus != null)
+                {
+                    DownloadTui.WriteSetup("Manifest Cache", manifestScanStatus, ConsoleColor.Gray);
+                }
+                DownloadTui.WriteSetup("Keys File", Path.GetFileName(_tempKeysPath), ConsoleColor.DarkGray);
 
                 int successfulDepots = 0;
                 int totalDepots = depots.Count;
+                bool hadErrors = false;
 
                 foreach (var depot in depots.Values)
                 {
-                    _lastLineLength = 0; // Reset length for the new depot progress bar
+                    _lastLineLength = 0;
                     _lastPercentage = 0;
                     _activeValidationFile = null;
-                    LogInfo($"\n--------------------------------------------------");
-                    LogInfo($"Downloading Depot {depot.DepotId} ({++successfulDepots}/{totalDepots})...");
-                    LogInfo($"--------------------------------------------------");
+                    DownloadTui.WriteDepotHeader(depot.DepotId, ++successfulDepots, totalDepots, depot.ManifestId);
 
                     var argsList = new List<string>
                     {
@@ -259,17 +261,17 @@ namespace DepotDL.CLI
                         {
                             argsList.Add("-manifestfile");
                             argsList.Add($"\"{manifestPath}\"");
-                            LogSuccess($"[Manifest] Found matching local manifest: {Path.GetFileName(manifestPath)}");
+                            DownloadTui.WriteStatus("Manifest", $"Using local file {Path.GetFileName(manifestPath)}", ConsoleColor.Green);
                         }
                         else if (manifestFiles.TryGetValue(depot.ManifestId, out var manifestPathById))
                         {
                             argsList.Add("-manifestfile");
                             argsList.Add($"\"{manifestPathById}\"");
-                            LogSuccess($"[Manifest] Found manifest by ID: {Path.GetFileName(manifestPathById)}");
+                            DownloadTui.WriteStatus("Manifest", $"Using local file {Path.GetFileName(manifestPathById)}", ConsoleColor.Green);
                         }
                         else
                         {
-                            LogWarning($"[Manifest] No local .manifest file matched. Will attempt downing it.");
+                            DownloadTui.WriteStatus("Manifest", "No local match; DepotDownloaderMod will fetch it", ConsoleColor.Yellow);
                         }
                     }
 
@@ -310,18 +312,17 @@ namespace DepotDL.CLI
 
                         if (process.ExitCode != 0)
                         {
-                            LogError($"[Error] DepotDownloaderMod exited with error code: {process.ExitCode}");
+                            hadErrors = true;
+                            DownloadTui.WriteStatus("Failed", $"DepotDownloaderMod exited with code {process.ExitCode}", ConsoleColor.Red);
                         }
                         else
                         {
-                            LogSuccess($"[Success] Depot {depot.DepotId} completed successfully.");
+                            DownloadTui.WriteStatus("Complete", $"Depot {depot.DepotId} completed successfully", ConsoleColor.Green);
                         }
                     }
                 }
 
-                LogSuccess("\n==================================================");
-                LogSuccess("            All Download Actions Done!           ");
-                LogSuccess("==================================================");
+                DownloadTui.WriteFinal(!hadErrors);
                 
                 try
                 {
@@ -346,19 +347,13 @@ namespace DepotDL.CLI
                         IsVerified = true
                     };
                     LibraryManager.AddOrUpdateGame(libGame);
-                    LogSuccess($"[Library] Registered '{gameName}' in the local library index.");
+                    DownloadTui.WriteStatus("Library", $"Registered '{gameName}' in the local library index", ConsoleColor.Green);
                 }
                 catch (Exception ex)
                 {
-                    LogWarning($"[Library] Failed to update library index: {ex.Message}");
+                    DownloadTui.WriteStatus("Library", $"Failed to update library index: {ex.Message}", ConsoleColor.Yellow);
                 }
 
-                if (selectedDepots != null)
-                {
-                    Console.WriteLine("\nPress any key to return to system.");
-                    Console.ReadKey();
-                }
-                
                 return 0;
             }
             catch (Exception ex)
@@ -461,51 +456,17 @@ namespace DepotDL.CLI
         {
             try
             {
-                int barWidth = 40;
-                int filledWidth = (int)Math.Round(percentage / 100.0 * barWidth);
-                if (filledWidth < 0) filledWidth = 0;
-                if (filledWidth > barWidth) filledWidth = barWidth;
-
-                string filledBar = new string('█', filledWidth);
-                string emptyBar = new string('░', barWidth - filledWidth);
-
-                string statusPart = "";
-                if (!string.IsNullOrEmpty(_activeValidationFile))
-                {
-                    statusPart = $" ║ {ConsoleColor.DarkGray}Val: {_activeValidationFile}";
-                }
-
-                string progressText = $"\r ║ Progress: {percentage:F1}% [{filledBar}{emptyBar}]{statusPart}";
-
-                int maxLen = 110;
-                try { maxLen = Console.WindowWidth - 1; } catch { }
-                if (progressText.Length > maxLen && maxLen > 10)
-                {
-                    progressText = progressText.Substring(0, maxLen - 3) + "...";
-                }
-
-                int currentLength = progressText.Length - 1;
-                if (currentLength < _lastLineLength)
-                {
-                    progressText += new string(' ', _lastLineLength - currentLength);
-                }
-                _lastLineLength = currentLength;
-
-                Console.Write(progressText);
+                DownloadTui.DrawProgress(percentage, _activeValidationFile, ref _lastLineLength);
             }
             catch
             {
-                Console.Write($"\r ║ Progress: {percentage:F1}%");
+                Console.Write($"\r  │ Progress     │ {percentage:F1}%");
             }
         }
 
         private static void ClearCurrentConsoleLine()
         {
-            if (_lastLineLength > 0)
-            {
-                Console.Write("\r" + new string(' ', _lastLineLength) + "\r");
-                _lastLineLength = 0;
-            }
+            DownloadTui.ClearProgress(ref _lastLineLength);
         }
 
         private static void SafeCleanupDepotDownloaderFolder(string? outputPath, string ddmodPath)

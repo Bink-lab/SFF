@@ -15,6 +15,9 @@ namespace DepotDL.CLI
         public string? AppId { get; set; }
         public string? ManifestsDir { get; set; }
         public string? OutputDir { get; set; }
+        public string? DownloadBaseDir { get; set; }
+        public string? RyuuApiKey { get; set; }
+        public bool ManifestsDirConfigured { get; set; }
         public List<DepotInfo> AllDepots { get; set; } = new();
         public List<DepotInfo> SelectedDepots { get; set; } = new();
     }
