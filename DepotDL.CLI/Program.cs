@@ -402,7 +402,6 @@ namespace DepotDL.CLI
 
             try
             {
-                // Check for verbose/repetitive lines to filter out
                 if (line.StartsWith("Using depot keys from", StringComparison.OrdinalIgnoreCase) ||
                     line.StartsWith("No username given", StringComparison.OrdinalIgnoreCase) ||
                     line.StartsWith("Connecting to Steam3", StringComparison.OrdinalIgnoreCase) ||
@@ -421,16 +420,13 @@ namespace DepotDL.CLI
                     return;
                 }
 
-                // Check if it's a validation line
                 if (line.StartsWith("Validating ", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Extract file name
                     _activeValidationFile = Path.GetFileName(line.Substring(11).Trim());
                     DrawProgressBar(_lastPercentage);
                     return;
                 }
 
-                // Look for progress percentage supporting both comma and dot decimal separators
                 var pctMatch = Regex.Match(line, @"(\d+(?:[.,]\d+)?)%");
                 if (pctMatch.Success)
                 {
@@ -443,10 +439,8 @@ namespace DepotDL.CLI
                 }
                 else
                 {
-                    // Clear any residual progress bar characters before printing a normal output line
                     ClearCurrentConsoleLine();
                     
-                    // Exclude some spammy Pre-allocating logs
                     if (line.StartsWith("Pre-allocating")) return;
 
                     Console.WriteLine(line);
@@ -454,7 +448,6 @@ namespace DepotDL.CLI
             }
             catch
             {
-                // Fallback to printing the line normally if anything fails
                 try
                 {
                     ClearCurrentConsoleLine();
@@ -468,7 +461,7 @@ namespace DepotDL.CLI
         {
             try
             {
-                int barWidth = 30;
+                int barWidth = 40;
                 int filledWidth = (int)Math.Round(percentage / 100.0 * barWidth);
                 if (filledWidth < 0) filledWidth = 0;
                 if (filledWidth > barWidth) filledWidth = barWidth;
@@ -479,12 +472,11 @@ namespace DepotDL.CLI
                 string statusPart = "";
                 if (!string.IsNullOrEmpty(_activeValidationFile))
                 {
-                    statusPart = $" - Validating: {_activeValidationFile}";
+                    statusPart = $" ║ {ConsoleColor.DarkGray}Val: {_activeValidationFile}";
                 }
 
-                string progressText = $"\rProgress: [{filledBar}{emptyBar}] {percentage:F1}%{statusPart}";
+                string progressText = $"\r ║ Progress: {percentage:F1}% [{filledBar}{emptyBar}]{statusPart}";
 
-                // Prevent progressText from getting too long and wrapping on small terminals safely
                 int maxLen = 110;
                 try { maxLen = Console.WindowWidth - 1; } catch { }
                 if (progressText.Length > maxLen && maxLen > 10)
@@ -492,7 +484,7 @@ namespace DepotDL.CLI
                     progressText = progressText.Substring(0, maxLen - 3) + "...";
                 }
 
-                int currentLength = progressText.Length - 1; // subtract 1 for \r
+                int currentLength = progressText.Length - 1;
                 if (currentLength < _lastLineLength)
                 {
                     progressText += new string(' ', _lastLineLength - currentLength);
@@ -503,8 +495,7 @@ namespace DepotDL.CLI
             }
             catch
             {
-                // Simple fallback on error
-                Console.Write($"\rProgress: {percentage:F1}%");
+                Console.Write($"\r ║ Progress: {percentage:F1}%");
             }
         }
 
