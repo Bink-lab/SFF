@@ -1,9 +1,9 @@
 #!/bin/bash
-echo "Building DepotDL.CLI..."
-dotnet build -c Release
+echo "Publishing DepotDL.CLI as self-contained single-file binary..."
+dotnet publish -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true
 if [ $? -ne 0 ]; then
-    echo "[ERROR] Build failed!"
+    echo "[ERROR] Publish failed!"
     exit 1
 fi
-echo "[SUCCESS] Build succeeded!"
-echo "Executable is located in: bin/Release/net9.0/DepotDL.CLI"
+echo "[SUCCESS] Publish succeeded!"
+echo "Executable is located in: bin/Release/net9.0/linux-x64/publish/"

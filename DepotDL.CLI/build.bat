@@ -8,7 +8,7 @@ if %ERRORLEVEL% NEQ 0 (
     if /I not "%CI%"=="true" pause
     exit /b %ERRORLEVEL%
 )
-xcopy /Y "..\third_party\DDMod\*.*" "bin\Release\net9.0\win-x64\publish\" >nul
+xcopy "..\third_party\DDMod\*" "bin\Release\net9.0\win-x64\publish\" /E /I /Y >nul
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to copy DepotDownloaderMod files!
     popd

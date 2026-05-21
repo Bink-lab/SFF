@@ -6,7 +6,10 @@ namespace DepotDL.CLI
 {
     public static class IniSettings
     {
-        private static readonly string IniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DepotDL.CLI.ini");
+        private static readonly string IniPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "DepotDL.CLI",
+            "DepotDL.CLI.ini");
 
         public static void LoadInto(TuiSession session)
         {
@@ -26,6 +29,7 @@ namespace DepotDL.CLI
 
         public static void Save(TuiSession session)
         {
+            Directory.CreateDirectory(Path.GetDirectoryName(IniPath)!);
             using var writer = new StreamWriter(IniPath, false);
             writer.WriteLine("[paths]");
             WriteValue(writer, "manifests_dir", session.ManifestsDirConfigured ? session.ManifestsDir : null);

@@ -22,13 +22,16 @@ namespace DepotDL.CLI
 
         public static RyuuDownloadResult DownloadPackage(string appId, string apiKey)
         {
+            // Sanitize appId to prevent path traversal
+            var sanitizedAppId = SanitizeFileName(appId);
             var url = $"https://generator.ryuu.lol/secure_download?appid={Uri.EscapeDataString(appId)}&auth_code={Uri.EscapeDataString(apiKey)}";
-            using var response = Http.GetAsync(url).GetAwaiter().GetResult();
-            var body = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+            using var response = Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult();
             var contentType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
 
-            if (IsJsonResponse(contentType, body))
+            // Check if response is JSON by content type first
+            if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
             {
+                var body = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
                 var message = ReadJsonMessage(body);
                 if (!response.IsSuccessStatusCode)
                 {
@@ -47,17 +50,23 @@ namespace DepotDL.CLI
                 throw new InvalidOperationException($"Ryuu request failed with HTTP {(int)response.StatusCode}.");
             }
 
-            if (body.Length == 0)
+            // Stream response to file instead of buffering in memory
+            var zipPath = Path.Combine(Path.GetTempPath(), $"ryuu_{sanitizedAppId}_{Guid.NewGuid():N}.zip");
+            using (var stream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
+            using (var fileStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
+                stream.CopyTo(fileStream);
+            }
+
+            if (new FileInfo(zipPath).Length == 0)
+            {
+                File.Delete(zipPath);
                 return new RyuuDownloadResult
                 {
                     HasZip = false,
                     Message = "Ryuu returned an empty response."
                 };
             }
-
-            var zipPath = Path.Combine(Path.GetTempPath(), $"ryuu_{appId}_{Guid.NewGuid():N}.zip");
-            File.WriteAllBytes(zipPath, body);
 
             return new RyuuDownloadResult
             {
@@ -67,16 +76,6 @@ namespace DepotDL.CLI
             };
         }
 
-        private static bool IsJsonResponse(string contentType, byte[] body)
-        {
-            if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var text = Encoding.UTF8.GetString(body).TrimStart();
-            return text.StartsWith("{", StringComparison.Ordinal);
-        }
 
         private static string ReadJsonMessage(byte[] body)
         {
@@ -100,6 +99,26 @@ namespace DepotDL.CLI
             }
 
             return Encoding.UTF8.GetString(body).Trim();
+        }
+
+        private static string SanitizeFileName(string fileName)
+        {
+            var invalidChars = Path.GetInvalidFileNameChars();
+            var sb = new StringBuilder(fileName.Length);
+
+            foreach (var c in fileName)
+            {
+                if (c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar || Array.IndexOf(invalidChars, c) >= 0)
+                {
+                    sb.Append('_');
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+
+            return sb.ToString();
         }
     }
 }
