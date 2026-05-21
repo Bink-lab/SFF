@@ -39,17 +39,17 @@ namespace DepotDL.CLI
                 Console.Clear();
 
                 string luaName = string.IsNullOrEmpty(session.LuaPath) ? "[None Loaded]" : Path.GetFileName(session.LuaPath);
-                if (luaName.Length > 21) luaName = luaName.Substring(0, 18) + "...";
+                luaName = TuiText.Shorten(luaName, 21);
                 string appId = string.IsNullOrEmpty(session.AppId) ? "[None]" : session.AppId;
                 string depotSel = session.AllDepots.Count == 0 
                     ? "0 Depots (No Lua)" 
                     : $"{session.SelectedDepots.Count}/{session.AllDepots.Count} Selected";
                 string manifestsVal = string.IsNullOrEmpty(session.ManifestsDir) ? "[Default]" : session.ManifestsDir;
-                if (manifestsVal.Length > 21) manifestsVal = "..." + manifestsVal.Substring(manifestsVal.Length - 18);
+                manifestsVal = TuiText.ShortenTail(manifestsVal, 21);
                 string outputVal = string.IsNullOrEmpty(session.OutputDir) ? "[Auto]" : session.OutputDir;
-                if (outputVal.Length > 21) outputVal = "..." + outputVal.Substring(outputVal.Length - 18);
+                outputVal = TuiText.ShortenTail(outputVal, 21);
                 string outputBaseVal = string.IsNullOrEmpty(session.DownloadBaseDir) ? "[Auto]" : session.DownloadBaseDir;
-                if (outputBaseVal.Length > 21) outputBaseVal = "..." + outputBaseVal.Substring(outputBaseVal.Length - 18);
+                outputBaseVal = TuiText.ShortenTail(outputBaseVal, 21);
                 string libraryStats = $"{verified}/{totalCount} Games";
 
                 var leftItems = new List<string>
@@ -78,11 +78,11 @@ namespace DepotDL.CLI
                 Console.WriteLine("╔════════════════════════════════════════╦════════════════════════════════════════╗");
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("DepotDL".PadRight(38));
+                Console.Write(TuiText.Pad("DepotDL", 38));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write(" ║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("ACTIVE SESSION STATUS".PadRight(38));
+                Console.Write(TuiText.Pad("ACTIVE SESSION STATUS", 38));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine(" ║");
                 Console.WriteLine("╠════════════════════════════════════════╬════════════════════════════════════════╣");
@@ -99,7 +99,7 @@ namespace DepotDL.CLI
                         {
                             Console.BackgroundColor = ConsoleColor.Cyan;
                             Console.ForegroundColor = ConsoleColor.Black;
-                            Console.Write($"> {leftItems[i]}".PadRight(38));
+                            Console.Write(TuiText.Pad($"> {leftItems[i]}", 38));
                             Console.ResetColor();
                         }
                         else
@@ -116,7 +116,7 @@ namespace DepotDL.CLI
                             {
                                 Console.ForegroundColor = ConsoleColor.White;
                             }
-                            Console.Write($"  {leftItems[i]}".PadRight(38));
+                            Console.Write(TuiText.Pad($"  {leftItems[i]}", 38));
                         }
                     }
                     else
@@ -131,11 +131,9 @@ namespace DepotDL.CLI
                     {
                         var stat = rightStats[i];
                         Console.ForegroundColor = ConsoleColor.DarkCyan;
-                        Console.Write(stat.Key.PadRight(17));
+                        Console.Write(TuiText.Pad(stat.Key, 17));
                         Console.ForegroundColor = stat.Color;
-                        string valStr = stat.Val;
-                        if (valStr.Length > 21) valStr = valStr.Substring(0, 18) + "...";
-                        Console.Write(valStr.PadRight(21));
+                        Console.Write(TuiText.Pad(stat.Val, 21));
                     }
                     else
                     {
@@ -275,19 +273,19 @@ namespace DepotDL.CLI
                 Console.WriteLine("╔════════════════════════════════════════╦════════════════╦═══════════════╦════════════╗");
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("GAME NAME".PadRight(38));
+                Console.Write(TuiText.Pad("GAME NAME", 38));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write(" ║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("APP ID".PadRight(14));
+                Console.Write(TuiText.Pad("APP ID", 14));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write(" ║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("TOTAL SIZE".PadRight(13));
+                Console.Write(TuiText.Pad("TOTAL SIZE", 13));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write(" ║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("STATUS".PadRight(10));
+                Console.Write(TuiText.Pad("STATUS", 10));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine(" ║");
                 Console.WriteLine("╠════════════════════════════════════════╬════════════════╬═══════════════╬════════════╣");
@@ -309,31 +307,31 @@ namespace DepotDL.CLI
                         if (i < games.Count)
                         {
                             var g = games[i];
-                            Console.Write($"> {g.GameName}".PadRight(38));
+                            Console.Write(TuiText.Pad($"> {g.GameName}", 38));
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ");
                             Console.ForegroundColor = ConsoleColor.White;
-                            Console.Write(g.AppId.PadRight(14));
+                            Console.Write(TuiText.Pad(g.AppId, 14));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ");
                             Console.ForegroundColor = ConsoleColor.White;
-                            Console.Write(FormatSize(g.TotalSizeBytes).PadRight(13));
+                            Console.Write(TuiText.Pad(FormatSize(g.TotalSizeBytes), 13));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ");
                             Console.ForegroundColor = g.IsVerified ? ConsoleColor.Green : ConsoleColor.Red;
-                            Console.Write((g.IsVerified ? "Verified" : "Missing").PadRight(10));
+                            Console.Write(TuiText.Pad(g.IsVerified ? "Verified" : "Missing", 10));
                         }
                         else if (i == games.Count)
                         {
-                            Console.Write("> [BATCH OPERATIONS...]".PadRight(38));
+                            Console.Write(TuiText.Pad("> [BATCH OPERATIONS...]", 38));
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
                         }
                         else
                         {
-                            Console.Write("> [BACK TO DASHBOARD]".PadRight(38));
+                            Console.Write(TuiText.Pad("> [BACK TO DASHBOARD]", 38));
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
@@ -347,31 +345,31 @@ namespace DepotDL.CLI
                         {
                             var g = games[i];
                             Console.ForegroundColor = ConsoleColor.White;
-                            Console.Write($"  {g.GameName}".PadRight(38));
+                            Console.Write(TuiText.Pad($"  {g.GameName}", 38));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ");
                             Console.ForegroundColor = ConsoleColor.Gray;
-                            Console.Write(g.AppId.PadRight(14));
+                            Console.Write(TuiText.Pad(g.AppId, 14));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ");
                             Console.ForegroundColor = ConsoleColor.Gray;
-                            Console.Write(FormatSize(g.TotalSizeBytes).PadRight(13));
+                            Console.Write(TuiText.Pad(FormatSize(g.TotalSizeBytes), 13));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ");
                             Console.ForegroundColor = g.IsVerified ? ConsoleColor.Green : ConsoleColor.Red;
-                            Console.Write((g.IsVerified ? "Verified" : "Missing").PadRight(10));
+                            Console.Write(TuiText.Pad(g.IsVerified ? "Verified" : "Missing", 10));
                         }
                         else if (i == games.Count)
                         {
                             Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.Write("  [BATCH OPERATIONS...]".PadRight(38));
+                            Console.Write(TuiText.Pad("  [BATCH OPERATIONS...]", 38));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
                         }
                         else
                         {
                             Console.ForegroundColor = ConsoleColor.Gray;
-                            Console.Write("  [BACK TO DASHBOARD]".PadRight(38));
+                            Console.Write(TuiText.Pad("  [BACK TO DASHBOARD]", 38));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                             Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
                         }
@@ -454,7 +452,7 @@ namespace DepotDL.CLI
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write($"GAME DETAILS: {game.GameName.ToUpper()}".PadRight(76));
+                Console.Write(TuiText.Pad($"GAME DETAILS: {game.GameName.ToUpper()}", 76));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine(" ║");
                 Console.WriteLine("╠══════════════════════════════════════════════════════════════════════════════╣");
@@ -464,15 +462,10 @@ namespace DepotDL.CLI
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.Write("║  ");
                     Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.Write(label.PadRight(18));
+                    Console.Write(TuiText.Pad(label, 18));
                     Console.ForegroundColor = valColor;
                     
-                    string displayVal = val;
-                    if (displayVal.Length > 54)
-                    {
-                        displayVal = displayVal.Substring(0, 51) + "...";
-                    }
-                    Console.Write(displayVal.PadRight(54));
+                    Console.Write(TuiText.Pad(val, 56));
                     
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.WriteLine("  ║");
@@ -655,7 +648,7 @@ namespace DepotDL.CLI
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("LIBRARY BATCH OPERATIONS".PadRight(76));
+                Console.Write(TuiText.Pad("LIBRARY BATCH OPERATIONS", 76));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine(" ║");
                 Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
@@ -824,7 +817,7 @@ namespace DepotDL.CLI
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
-                Console.WriteLine($"║ BATCH QUEUE: {i + 1} OF {selected.Count} - {game.GameName.ToUpper().PadRight(50)} ║");
+                Console.WriteLine($"║ {TuiText.Pad($"BATCH QUEUE: {i + 1} OF {selected.Count} - {game.GameName.ToUpper()}", 76)} ║");
                 Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
                 Console.ResetColor();
 
@@ -895,7 +888,7 @@ namespace DepotDL.CLI
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write(prompt.ToUpper().PadRight(76));
+                Console.Write(TuiText.Pad(prompt.ToUpper(), 76));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine(" ║");
                 Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
@@ -985,7 +978,7 @@ namespace DepotDL.CLI
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("MANIFEST CACHE MANAGER".PadRight(76));
+                Console.Write(TuiText.Pad("MANIFEST CACHE MANAGER", 76));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine(" ║");
                 Console.WriteLine("╠══════════════════════════════════════════════════════════════════════════════╣");
@@ -1016,15 +1009,10 @@ namespace DepotDL.CLI
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.Write("║  ");
                     Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.Write(label.PadRight(22));
+                    Console.Write(TuiText.Pad(label, 22));
                     Console.ForegroundColor = valColor;
                     
-                    string displayVal = val;
-                    if (displayVal.Length > 50)
-                    {
-                        displayVal = displayVal.Substring(0, 47) + "...";
-                    }
-                    Console.Write(displayVal.PadRight(50));
+                    Console.Write(TuiText.Pad(val, 50));
                     
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.WriteLine("  ║");
@@ -1170,14 +1158,14 @@ namespace DepotDL.CLI
             Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
             Console.Write("║ ");
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.Write($"CACHED MANIFEST FILES ({files.Length} FOUND)".PadRight(76));
+            Console.Write(TuiText.Pad($"CACHED MANIFEST FILES ({files.Length} FOUND)", 76));
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(" ║");
             Console.WriteLine("╠══════════════════════════════════════════════════════════════════════════════╣");
             Console.ResetColor();
 
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine($"  {"Depot ID".PadRight(15)} │ {"Manifest ID".PadRight(22)} │ {"File Size".PadRight(15)} │ {"Filename"}");
+            Console.WriteLine($"  {TuiText.Pad("Depot ID", 15)} │ {TuiText.Pad("Manifest ID", 22)} │ {TuiText.Pad("File Size", 15)} │ Filename");
             Console.WriteLine(new string('═', 78));
             Console.ResetColor();
 
@@ -1201,7 +1189,7 @@ namespace DepotDL.CLI
                     depotId = name;
                 }
 
-                Console.WriteLine($"  {depotId.PadRight(15)} │ {manifestId.PadRight(22)} │ {sizeStr.PadRight(15)} │ {Path.GetFileName(file)}");
+                Console.WriteLine($"  {TuiText.Pad(depotId, 15)} │ {TuiText.Pad(manifestId, 22)} │ {TuiText.Pad(sizeStr, 15)} │ {Path.GetFileName(file)}");
             }
 
             Console.ForegroundColor = ConsoleColor.DarkCyan;
@@ -1598,7 +1586,7 @@ namespace DepotDL.CLI
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write(prompt.ToUpper().PadRight(76));
+                Console.Write(TuiText.Pad(prompt.ToUpper(), 76));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine(" ║");
                 Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
@@ -1665,7 +1653,7 @@ namespace DepotDL.CLI
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write(prompt.ToUpper().PadRight(76));
+                Console.Write(TuiText.Pad(prompt.ToUpper(), 76));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine(" ║");
                 Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
@@ -1809,7 +1797,7 @@ namespace DepotDL.CLI
             Console.Write(new string(' ', leftPad));
             Console.Write("║ ");
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write(prompt.PadRight(boxWidth - 4));
+            Console.Write(TuiText.Pad(prompt, boxWidth - 4));
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" ║\n");
 
@@ -1818,9 +1806,7 @@ namespace DepotDL.CLI
                 Console.Write(new string(' ', leftPad));
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-                string defaultMsg = "Default: " + defaultValue;
-                if (defaultMsg.Length > boxWidth - 4) defaultMsg = defaultMsg.Substring(0, boxWidth - 7) + "...";
-                Console.Write(defaultMsg.PadRight(boxWidth - 4));
+                Console.Write(TuiText.Pad("Default: " + defaultValue, boxWidth - 4));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write(" ║\n");
             }
@@ -1828,7 +1814,7 @@ namespace DepotDL.CLI
             Console.Write(new string(' ', leftPad));
             Console.Write("║ ");
             Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("> ".PadRight(boxWidth - 4));
+            Console.Write(TuiText.Pad("> ", boxWidth - 4));
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" ║\n");
 

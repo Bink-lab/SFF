@@ -1,6 +1,4 @@
 using System;
-using System.IO;
-
 namespace DepotDL.CLI
 {
     internal static class DownloadTui
@@ -10,15 +8,15 @@ namespace DepotDL.CLI
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine("╔════════════════════════════════════════╦═════════════════════════════════════╗");
             Console.Write("║ ");
-            WriteColor("DepotDL Download Queue".PadRight(38), ConsoleColor.Cyan);
+            WriteColor(TuiText.Pad("DepotDL Download Queue", 38), ConsoleColor.Cyan);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" ║ ");
-            WriteColor($"APP {appId}".PadRight(35), ConsoleColor.Cyan);
+            WriteColor(TuiText.Pad($"APP {appId}", 35), ConsoleColor.Cyan);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(" ║");
             Console.WriteLine("╠════════════════════════════════════════╩═════════════════════════════════════╣");
             WriteInfoRow("Selected Depots", depotCount.ToString(), ConsoleColor.White);
-            WriteInfoRow("Output Folder", ShortenPath(outputPath, 58), ConsoleColor.Gray);
+            WriteInfoRow("Output Folder", TuiText.ShortenPath(outputPath, 55), ConsoleColor.Gray);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
             Console.ResetColor();
@@ -29,7 +27,7 @@ namespace DepotDL.CLI
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write("  │ ");
-            WriteColor(label.PadRight(16), ConsoleColor.DarkCyan);
+            WriteColor(TuiText.Pad(label, 16), ConsoleColor.DarkCyan);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" │ ");
             WriteColor(value, color);
@@ -43,13 +41,13 @@ namespace DepotDL.CLI
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
             Console.Write("║ ");
-            WriteColor($"Depot {depotId}".PadRight(24), ConsoleColor.Cyan);
+            WriteColor(TuiText.Pad($"Depot {depotId}", 24), ConsoleColor.Cyan);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" │ ");
-            WriteColor($"Queue {index}/{total}".PadRight(16), ConsoleColor.White);
+            WriteColor(TuiText.Pad($"Queue {index}/{total}", 16), ConsoleColor.White);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" │ ");
-            WriteColor(ShortenValue(string.IsNullOrEmpty(manifestId) ? "Latest manifest" : manifestId, 28).PadRight(28), ConsoleColor.Gray);
+            WriteColor(TuiText.Pad(string.IsNullOrEmpty(manifestId) ? "Latest manifest" : manifestId, 28), ConsoleColor.Gray);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(" ║");
             Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
@@ -60,7 +58,7 @@ namespace DepotDL.CLI
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write("  │ ");
-            WriteColor(label.PadRight(12), color);
+            WriteColor(TuiText.Pad(label, 12), color);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" │ ");
             WriteColor(message, ConsoleColor.Gray);
@@ -79,7 +77,7 @@ namespace DepotDL.CLI
             string emptyBar = new string('░', barWidth - filledWidth);
             string validation = string.IsNullOrEmpty(activeValidationFile)
                 ? string.Empty
-                : $"  validating {ShortenValue(activeValidationFile, 24)}";
+                : $"  validating {TuiText.Shorten(activeValidationFile, 24)}";
             const string progressPrefix = "\r  │ Progress     │ ";
             string progressBody = $"{percentage,5:F1}% [{filledBar}{emptyBar}]{validation}";
             string progressText = progressPrefix + progressBody;
@@ -88,7 +86,7 @@ namespace DepotDL.CLI
             try { maxLen = Console.WindowWidth - 1; } catch { }
             if (progressText.Length > maxLen && maxLen > 10)
             {
-                progressText = progressText.Substring(0, maxLen - 3) + "...";
+                progressText = TuiText.Shorten(progressText, maxLen);
             }
 
             int currentLength = progressText.Length - 1;
@@ -120,7 +118,7 @@ namespace DepotDL.CLI
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
             Console.Write("║ ");
-            WriteColor((success ? "Download actions completed" : "Download actions finished with errors").PadRight(76), success ? ConsoleColor.Green : ConsoleColor.Red);
+            WriteColor(TuiText.Pad(success ? "Download actions completed" : "Download actions finished with errors", 76), success ? ConsoleColor.Green : ConsoleColor.Red);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(" ║");
             Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
@@ -131,10 +129,10 @@ namespace DepotDL.CLI
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write("║ ");
-            WriteColor(key.PadRight(18), ConsoleColor.DarkCyan);
+            WriteColor(TuiText.Pad(key, 18), ConsoleColor.DarkCyan);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" │ ");
-            WriteColor(value.PadRight(55), valueColor);
+            WriteColor(TuiText.Pad(value, 55), valueColor);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(" ║");
         }
@@ -145,18 +143,5 @@ namespace DepotDL.CLI
             Console.Write(text);
         }
 
-        private static string ShortenPath(string path, int maxLength)
-        {
-            if (path.Length <= maxLength) return path;
-            string fileName = Path.GetFileName(path);
-            if (fileName.Length + 4 >= maxLength) return "..." + path[^Math.Max(0, maxLength - 3)..];
-            return "..." + Path.DirectorySeparatorChar + fileName;
-        }
-
-        private static string ShortenValue(string value, int maxLength)
-        {
-            if (value.Length <= maxLength) return value;
-            return value[..Math.Max(0, maxLength - 3)] + "...";
-        }
     }
 }
