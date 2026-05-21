@@ -288,16 +288,26 @@ namespace DepotDL.CLI
                         WorkingDirectory = Path.GetDirectoryName(ddmodPath) ?? AppDomain.CurrentDomain.BaseDirectory
                     };
 
+                    var depotOutputErrors = new List<string>();
+
                     using (var process = new Process { StartInfo = psi })
                     {
                         process.OutputDataReceived += (sender, lineEventArgs) =>
                         {
+                            if (IsDepotDownloadFailure(lineEventArgs.Data))
+                            {
+                                depotOutputErrors.Add(lineEventArgs.Data!);
+                            }
                             ProcessProgressLine(lineEventArgs.Data);
                         };
                         process.ErrorDataReceived += (sender, lineEventArgs) =>
                         {
                             if (!string.IsNullOrEmpty(lineEventArgs.Data))
                             {
+                                if (IsDepotDownloadFailure(lineEventArgs.Data))
+                                {
+                                    depotOutputErrors.Add(lineEventArgs.Data);
+                                }
                                 ClearCurrentConsoleLine();
                                 LogError(lineEventArgs.Data);
                             }
@@ -310,10 +320,13 @@ namespace DepotDL.CLI
 
                         ClearCurrentConsoleLine();
 
-                        if (process.ExitCode != 0)
+                        if (process.ExitCode != 0 || depotOutputErrors.Count > 0)
                         {
                             hadErrors = true;
-                            DownloadTui.WriteStatus("Failed", $"DepotDownloaderMod exited with code {process.ExitCode}", ConsoleColor.Red);
+                            var reason = depotOutputErrors.Count > 0
+                                ? depotOutputErrors[depotOutputErrors.Count - 1]
+                                : $"DepotDownloaderMod exited with code {process.ExitCode}";
+                            DownloadTui.WriteStatus("Failed", reason, ConsoleColor.Red);
                         }
                         else
                         {
@@ -373,6 +386,16 @@ namespace DepotDL.CLI
                 SafeCleanupKeys();
                 SafeCleanupDepotDownloaderFolder(outputPath, ddmodPath);
             }
+        }
+
+        private static bool IsDepotDownloadFailure(string? line)
+        {
+            if (string.IsNullOrWhiteSpace(line)) return false;
+
+            return line.Contains("AccessDenied", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("No valid depot key", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("unable to download", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("missing public subsection or manifest section", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void SafeCleanupKeys()
