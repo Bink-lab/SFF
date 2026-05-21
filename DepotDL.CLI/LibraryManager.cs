@@ -171,7 +171,7 @@ namespace DepotDL.CLI
             var keyMatches = keyRegex.Matches(luaContent);
             foreach (Match match in keyMatches)
             {
-                var depotId = match.Groups[2].Value;
+                var depotId = match.Groups[1].Value;
                 var key = match.Groups[3].Value;
                 if (!depots.TryGetValue(depotId, out var depot))
                 {
