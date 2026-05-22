@@ -30,7 +30,7 @@ from typing import cast
 logger = logging.getLogger(__name__)
 
 SETTINGS_FILE = sff_data_dir() / "settings.bin"
-SETTINGS_VERSION = "1.0.0"  # For migration tracking
+SETTINGS_VERSION = "1.1.0"  # For migration tracking
 
 
 def load_all_settings():
@@ -180,11 +180,11 @@ def migrate_settings(settings):
 
     logger.info(f"Migrating settings from version {current_version} to {SETTINGS_VERSION}")
 
-    # Add migration logic here as needed in future versions
-    # Example:
-    # if current_version < "1.1.0":
-    #     # Migrate from 1.0.0 to 1.1.0
-    #     settings["new_key"] = "default_value"
+    if current_version < "1.1.0":
+        if "auto_update_enabled" not in settings:
+            settings["auto_update_enabled"] = False
+        if "update_channel" not in settings:
+            settings["update_channel"] = "Stable (Normal)"
 
     settings["_version"] = SETTINGS_VERSION
     with SETTINGS_FILE.open("wb") as f:

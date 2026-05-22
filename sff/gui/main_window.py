@@ -1,5 +1,5 @@
 # SteaMidra - Steam game setup and manifest tool (SFF)
-# Copyright (c) 2025-2026 Midrag (https://github.com/Midrags)
+# Copyright (c) 2025-2026 Midrag (https://github.com/bink-lab)
 #
 # This file is part of SteaMidra.
 #
@@ -95,39 +95,6 @@ def _arrow_style_url(path):
 _RESOURCES_DIR = Path(__file__).resolve().parent / "resources"
 
 
-class GameComboBox(QComboBox):
-    """ComboBox with visible arrow that points down when closed, up when open."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._popup_open = False
-        self._down_path = _RESOURCES_DIR / "arrow_down.png"
-        self._up_path = _RESOURCES_DIR / "arrow_up.png"
-        self._update_arrow()
-
-    def showPopup(self):
-        self._popup_open = True
-        self._update_arrow()
-        super().showPopup()
-
-    def hidePopup(self):
-        super().hidePopup()
-        self._popup_open = False
-        self._update_arrow()
-
-    def _update_arrow(self):
-        if not self._down_path.exists() or not self._up_path.exists():
-            return
-        p = self._up_path if self._popup_open else self._down_path
-        url = _arrow_style_url(p)
-        self.setStyleSheet(
-            f"QComboBox::down-arrow {{ image: url({url}); width: 14px; height: 14px; }}"
-            "QComboBox::drop-down {"
-            " subcontrol-origin: padding; subcontrol-position: center right;"
-            " width: 24px; min-width: 24px; border: none; }"
-        )
-
-
 class SFFMainWindow(QMainWindow):
     def __init__(self, ui, steam_path):
         super().__init__()
@@ -162,22 +129,10 @@ class SFFMainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         root_layout = QVBoxLayout(central)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        # ── Web UI toggle bar ──
-        toggle_bar = QHBoxLayout()
-        self._web_ui_toggle = QPushButton(T("Switch to Classic UI"))
-        self._web_ui_toggle.setToolTip(T("Toggle between the classic tab UI and the new web-based UI"))
-        self._web_ui_toggle.clicked.connect(self._toggle_web_ui)
-        toggle_bar.addStretch()
-        toggle_bar.addWidget(self._web_ui_toggle)
-        root_layout.addLayout(toggle_bar)
-
-        # ── Classic tab UI (hidden by default — new UI is primary) ──
-        self.tabs = QTabWidget()
-        self.tabs.setVisible(False)
-        root_layout.addWidget(self.tabs)
-
-        # ── New Web UI (visible by default) ──
+        # ── New Web UI ──
         self._web_view = QWebEngineView()
         root_layout.addWidget(self._web_view)
         self._web_channel = QWebChannel()
@@ -191,247 +146,9 @@ class SFFMainWindow(QMainWindow):
         )
         self._web_ui_active = True
         self._web_ui_loaded = False
-        main_tab_widget = QWidget()
-        main_tab_layout = QVBoxLayout(main_tab_widget)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll_widget = QWidget()
-        layout = QVBoxLayout(scroll_widget)
-        scroll.setWidget(scroll_widget)
-        main_tab_layout.addWidget(scroll, stretch=1)
-        self.tabs.addTab(main_tab_widget, "Main")
-        from sff.gui.help_buttons import add_help_button
-        add_help_button(
-            layout,
-            "Main Hub",
-            "SteaMidra Main Hub\n\n"
-            "Game / Path:\n"
-            "  Select a Steam game from the dropdown or browse to a game\n"
-            "  folder outside Steam. Used by all Game Actions below.\n\n"
-            "Game Actions:\n"
-            "  - Crack game (gbe_fork): Replace steam_api DLLs with Goldberg\n"
-            "    Emulator so the game runs without Steam ownership.\n"
-            "  - Remove SteamStub: Strip Valve's SteamStub DRM wrapper from\n"
-            "    a game executable using Steamless.\n"
-            "  - UserGameStats: Download achievement data for the selected game.\n"
-            "  - DLC check: See which DLCs exist and which are unlocked.\n"
-            "  - Workshop item: Download a Steam Workshop mod by ID.\n"
-            "  - Open Workshop: Browse the Workshop for the selected game.\n"
-            "  - Check mod updates: See if downloaded Workshop mods have\n"
-            "    newer versions available.\n"
-            "  - Multiplayer fix: Apply online-fix.me multiplayer patches.\n"
-            "  - Fixes & Bypasses: Apply community-maintained fixes.\n"
-            "  - DLC Unlockers: Manage CreamAPI / SmokeAPI / other DLC\n"
-            "    unlocker DLLs for the selected game.\n"
-            "  - SteamAutoCrack: Run the SteamAutoCrack CLI tool on the game.\n\n"
-            "Lua / Manifest Processing:\n"
-            "  - Download Games: Parse a .lua file and download all game\n"
-            "    files (depots, manifests, ACF) to your Steam library.\n"
-            "  - Download manifests only: Download just the .manifest files\n"
-            "    without game content.\n"
-            "  - Recent .lua files: Re-open a previously used .lua file.\n"
-            "  - Update all manifests: Refresh manifests for all previously\n"
-            "    downloaded games.\n\n"
-            "Library & Steam Tools:\n"
-            "  - Manage Injection Profiles: Create, switch, save, merge,\n"
-            "    delete, or rename app ID injection profiles.\n"
-            "  - Mute: Toggle background music on/off.\n"
-            "  - Remove game from library: Remove a game's ACF and registered app ID.\n"
-            "  - Context menu: Add/remove SteaMidra from Windows Explorer\n"
-            "    right-click menu.",
-            parent_widget=self,
-        )
-        from sff.gui.store_tab import StoreTab
-        from sff.gui.downloads_tab import DownloadsTab
-        from sff.gui.fix_game_tab import FixGameTab
-        from sff.gui.tools_tab import ToolsTab
-        from sff.gui.cloud_saves_tab import CloudSavesTab
         from sff.download_manager import DownloadManager
-        # Shared download manager — used by both the tracking tab and
-        # the backend (process_lua_full) so downloads show up in the UI.
         self._download_manager = DownloadManager()
         self.ui.download_manager = self._download_manager
-        self.store_tab = StoreTab(steam_path=steam_path, ui=self.ui, run_tool_fn=self._run_tool)
-        self.tabs.addTab(self.store_tab, "Store")
-        self.downloads_tab = DownloadsTab(download_manager=self._download_manager)
-        self.tabs.addTab(self.downloads_tab, "Download Tracking")
-        self.fix_game_tab = FixGameTab(steam_path=steam_path)
-        self.tabs.addTab(self.fix_game_tab, "Fix Game")
-        self.tools_tab = ToolsTab(steam_path)
-        self.tabs.addTab(self.tools_tab, "Tools")
-        self.cloud_saves_tab = CloudSavesTab(steam_path)
-        self.tabs.addTab(self.cloud_saves_tab, "Cloud Saves")
-        # ── Game / path ──────────────────────────────────────────
-        path_group = QGroupBox(T("Game / path"))
-        path_layout = QVBoxLayout(path_group)
-        path_row = QHBoxLayout()
-        path_row.addWidget(QLabel(T("Path:")))
-        self.path_edit = QLineEdit()
-        self.path_edit.setPlaceholderText(
-            T("Game folder (for outside Steam) or leave empty for Steam games")
-        )
-        path_row.addWidget(self.path_edit)
-        browse_btn = QPushButton("...")
-        browse_btn.setFixedWidth(36)
-        browse_btn.clicked.connect(self._browse_path)
-        path_row.addWidget(browse_btn)
-        path_layout.addLayout(path_row)
-        source_row = QHBoxLayout()
-        self.radio_steam = QRadioButton(T("Steam games"))
-        self.radio_steam.setChecked(True)
-        self.radio_outside = QRadioButton(T("Games outside of Steam"))
-        self.radio_steam.toggled.connect(self._on_source_changed)
-        self.radio_outside.toggled.connect(self._on_source_changed)
-        source_row.addWidget(self.radio_steam)
-        source_row.addWidget(self.radio_outside)
-        source_row.addStretch()
-        path_layout.addLayout(source_row)
-        game_row = QHBoxLayout()
-        game_row.addWidget(QLabel(T("Game:")))
-        self.game_combo = GameComboBox()
-        self.game_combo.setMinimumWidth(280)
-        game_row.addWidget(self.game_combo)
-        refresh_btn = QPushButton(T("Refresh list"))
-        refresh_btn.clicked.connect(self._refresh_game_list)
-        game_row.addWidget(refresh_btn)
-        quick_cc_btn = QPushButton("Quick ColdClient")
-        quick_cc_btn.setToolTip("Open Fix Game tab with ColdClient mode pre-filled for the selected game")
-        quick_cc_btn.clicked.connect(self._quick_coldclient)
-        game_row.addWidget(quick_cc_btn)
-        game_row.addStretch()
-        path_layout.addLayout(game_row)
-        outside_row = QHBoxLayout()
-        self._outside_name_label = QLabel("Game name:")
-        outside_row.addWidget(self._outside_name_label)
-        self.outside_name_edit = QLineEdit()
-        self.outside_name_edit.setPlaceholderText("For search (e.g. online-fix.me)")
-        outside_row.addWidget(self.outside_name_edit)
-        self._outside_appid_label = QLabel("App ID:")
-        outside_row.addWidget(self._outside_appid_label)
-        self.outside_appid_edit = QLineEdit()
-        self.outside_appid_edit.setPlaceholderText("Optional")
-        self.outside_appid_edit.setMaximumWidth(80)
-        outside_row.addWidget(self.outside_appid_edit)
-        outside_row.addStretch()
-        path_layout.addLayout(outside_row)
-        for w in (
-            self._outside_name_label,
-            self.outside_name_edit,
-            self._outside_appid_label,
-            self.outside_appid_edit,
-        ):
-            w.setVisible(False)
-        layout.addWidget(path_group)
-        # ── Game Actions (need selected game) ────────────────────
-        game_actions_group = QGroupBox(T("Game Actions"))
-        ga_layout = QVBoxLayout(game_actions_group)
-        ga_layout.setSpacing(6)
-        _TOOLTIPS = {
-            T("Crack game (gbe_fork)"): "Replace steam_api DLLs with Goldberg Emulator",
-            T("Remove SteamStub (Steamless)"): "Strip Valve's SteamStub DRM from a game executable",
-            T("UserGameStats"): "Download achievement / stats data for this game",
-            T("DLC check"): "See which DLCs exist and which are unlocked",
-            T("Workshop item"): "Download a Steam Workshop mod by its ID",
-            T("Open Workshop"): "Browse the Steam Workshop for this game",
-            T("Check mod updates"): "Check if downloaded Workshop mods have newer versions",
-            T("Multiplayer fix"): "Apply online-fix.me multiplayer patches",
-            T("Fixes & Bypasses"): "Apply community-maintained fixes and bypasses",
-            T("DLC Unlockers"): "Manage CreamAPI / SmokeAPI / other DLC unlocker DLLs",
-            T("SteamAutoCrack"): "Run the SteamAutoCrack CLI tool on this game",
-        }
-        row1 = QHBoxLayout()
-        row1.setSpacing(4)
-        for label, choice in [
-            (T("Crack game (gbe_fork)"), MainMenu.CRACK_GAME),
-            (T("Remove SteamStub (Steamless)"), MainMenu.REMOVE_DRM),
-            (T("UserGameStats"), MainMenu.DL_USER_GAME_STATS),
-            (T("DLC check"), MainMenu.DLC_CHECK),
-        ]:
-            btn = QPushButton(label)
-            btn.setToolTip(_TOOLTIPS.get(label, ""))
-            btn.clicked.connect(lambda checked=False, c=choice: self._run_game_action(c))
-            row1.addWidget(btn)
-        row1.addStretch()
-        ga_layout.addLayout(row1)
-        row2 = QHBoxLayout()
-        row2.setSpacing(4)
-        for label, choice in [
-            (T("Workshop item"), MainMenu.DL_WORKSHOP_ITEM),
-            (T("Open Workshop"), None),
-            (T("Check mod updates"), MainMenu.CHECK_MOD_UPDATES),
-            (T("Multiplayer fix"), MainMenu.MULTIPLAYER_FIX),
-            (T("Fixes & Bypasses"), MainMenu.CRACK_FIX),
-            (T("HyperVisor (HVAuto)"), MainMenu.HV_FIX),
-            (T("DLC Unlockers"), MainMenu.MANAGE_DLC_UNLOCKERS),
-            (T("SteamAutoCrack"), None),
-        ]:
-            btn = QPushButton(label)
-            btn.setToolTip(_TOOLTIPS.get(label, ""))
-            if choice is not None:
-                btn.clicked.connect(lambda checked=False, c=choice: self._run_game_action(c))
-            elif label == T("SteamAutoCrack"):
-                btn.clicked.connect(self._run_steam_auto_gui)
-            else:
-                btn.clicked.connect(self._open_workshop)
-            row2.addWidget(btn)
-        row2.addStretch()
-        ga_layout.addLayout(row2)
-        layout.addWidget(game_actions_group)
-        # ── Lua / Manifest Processing ────────────────────────────
-        lua_group = QGroupBox(T("Lua / Manifest Processing"))
-        lua_layout = QVBoxLayout(lua_group)
-        lua_row = QHBoxLayout()
-        for label, func in [
-            (T("Download Games"), lambda: self.ui.process_lua_full()),
-            (T("Download manifests only"), lambda: self.ui.process_lua_minimal()),
-            (T("Recent .lua files"), lambda: self.ui.recent_files_menu()),
-            (T("Update all manifests"), lambda: self.ui.update_all_manifests()),
-        ]:
-            btn = QPushButton(label)
-            btn.clicked.connect(lambda checked=False, f=func: self._run_tool(f))
-            lua_row.addWidget(btn)
-        lua_row.addStretch()
-        lua_layout.addLayout(lua_row)
-        layout.addWidget(lua_group)
-        # ── Library & Steam Tools ────────────────────────────────
-        tools_group = QGroupBox(T("Library & Steam Tools"))
-        tools_layout = QVBoxLayout(tools_group)
-        tools_row1 = QHBoxLayout()
-        for label, func in [
-            (T("Manage Injection Profiles"), lambda: self.ui.injection_menu()),
-        ]:
-            btn = QPushButton(label)
-            btn.clicked.connect(lambda checked=False, f=func: self._run_tool(f))
-            tools_row1.addWidget(btn)
-        self._mute_btn = QPushButton("Mute")
-        self._mute_btn.clicked.connect(self._toggle_mute)
-        tools_row1.addWidget(self._mute_btn)
-        tools_row1.addStretch()
-        tools_layout.addLayout(tools_row1)
-        if sys.platform == "win32":
-            tools_row2 = QHBoxLayout()
-            for label, func in [
-                (T("Remove game from library"), lambda: self.ui.remove_game_menu()),
-                (T("Context menu"), lambda: self.ui.manage_context_menu()),
-            ]:
-                btn = QPushButton(label)
-                btn.clicked.connect(lambda checked=False, f=func: self._run_tool(f))
-                tools_row2.addWidget(btn)
-            tools_row2.addStretch()
-            tools_layout.addLayout(tools_row2)
-        layout.addWidget(tools_group)
-        # ── Log ──────────────────────────────────────────────────
-        log_group = QGroupBox(T("Log"))
-        log_layout = QVBoxLayout(log_group)
-        self.log_text = QPlainTextEdit()
-        self.log_text.setReadOnly(True)
-        self.log_text.setMaximumBlockCount(5000)
-        self.log_text.setMinimumHeight(160)
-        log_layout.addWidget(self.log_text)
-        clear_btn = QPushButton(T("Clear log"))
-        clear_btn.clicked.connect(self.log_text.clear)
-        log_layout.addWidget(clear_btn)
-        layout.addWidget(log_group)
         # ── Menu bar ─────────────────────────────────────────────
         menubar = self.menuBar()
         settings_action = menubar.addAction(T("Settings"))
@@ -453,14 +170,14 @@ class SFFMainWindow(QMainWindow):
         )
         logs_action = menubar.addAction("Logs")
         logs_action.triggered.connect(self._show_log_window)
-        self._stream_emitter.text_written.connect(self._append_log)
+        # self._stream_emitter.text_written.connect(self._append_log)
         # Only persist the Qt fallback theme if there was no saved theme or the saved
         # theme is a known Qt theme. Web-only themes (photo themes, extra color themes)
         # are not in THEMES but must not be overwritten here.
         _should_save = _saved_theme is None or _saved_theme in THEMES
         self._set_theme(self._current_theme, save=_should_save)
-        self._on_source_changed()
-        self._refresh_game_list()
+        pass # self._on_source_changed()
+        pass # self._refresh_game_list()
         # Start with new web UI by default — hide menu bar
         menubar.setVisible(False)
         self._load_web_ui()
@@ -470,99 +187,43 @@ class SFFMainWindow(QMainWindow):
         self._save_watcher_timer = QTimer(self)
         self._save_watcher_timer.timeout.connect(self._run_background_save_watcher)
         self._start_save_watcher()
+        self._update_checker_timer = QTimer(self)
+        self._update_checker_timer.timeout.connect(self._run_background_update_check)
+        self._start_update_checker()
+
+    def _start_update_checker(self):
+        from sff.storage.settings import get_setting
+        from sff.structs import Settings as _S
+        enabled = get_setting(_S.AUTO_UPDATE_ENABLED)
+        self._update_checker_timer.stop()
+        if enabled:
+            self._update_checker_timer.start(4 * 60 * 60 * 1000)
+            QTimer.singleShot(10000, self._run_background_update_check)
+
+    def _run_background_update_check(self):
+        import threading
+        t = threading.Thread(target=self._do_background_update_check, daemon=True)
+        t.start()
+
+    def _do_background_update_check(self):
+        from sff.storage.settings import get_setting
+        from sff.structs import Settings as _S
+        enabled = get_setting(_S.AUTO_UPDATE_ENABLED)
+        if not enabled:
+            return
+        channel = get_setting(_S.UPDATE_CHANNEL) or "Stable (Normal)"
+        try:
+            self.ui.check_updates(self.ui.os_type, channel=channel, auto_check=True)
+        except Exception:
+            logger.debug("Update checker error", exc_info=True)
 
     # ── Path / game source helpers ───────────────────────────────
 
-    def _browse_path(self):
-        path = QFileDialog.getExistingDirectory(self, "Select game folder")
-        if path:
-            self.path_edit.setText(path)
-            if self.radio_outside.isChecked() and not self.outside_name_edit.text().strip():
-                self.outside_name_edit.setText(Path(path).name)
 
-    def _on_source_changed(self):
-        from_steam = self.radio_steam.isChecked()
-        self.game_combo.setEnabled(from_steam)
-        self.path_edit.setEnabled(not from_steam)
-        for w in (
-            self._outside_name_label,
-            self.outside_name_edit,
-            self._outside_appid_label,
-            self.outside_appid_edit,
-        ):
-            w.setVisible(not from_steam)
 
-    def _refresh_game_list(self):
-        from sff.game_specific import GameHandler
-        from sff.storage.vdf import get_steam_libs
-        self.game_combo.clear()
-        self._game_list = []
-        injection = self.ui.app_list_man or self.ui.sls_man
-        if not injection:
-            self.game_combo.addItem("(Unsupported on this OS)", None)
-            return
-        steam_libs = get_steam_libs(self.steam_path)
-        lib_path = steam_libs[0] if steam_libs else self.steam_path
-        handler = GameHandler(self.steam_path, lib_path, self.ui.provider, injection)
-        self._game_list = handler.get_game_list()
-        if not self._game_list:
-            self.game_combo.addItem("(No games found)", None)
-            return
-        for name, acf in self._game_list:
-            self.game_combo.addItem(name, acf)
 
-    def _quick_coldclient(self):
-        """Switch to Fix Game tab with ColdClient mode pre-filled from the selected game."""
-        from sff.fix_game.service import EmuMode
-        acf = self._get_selected_acf()
-        if acf is None:
-            from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "No Game Selected",
-                                "Please select a game from the dropdown first.")
-            return
-        game_path = str(getattr(acf, "path", "") or "")
-        app_id = str(getattr(acf, "app_id", "") or "")
-        self.fix_game_tab.prefill(game_path, app_id, EmuMode.COLDCLIENT_SIMPLE)
-        # switch to Fix Game tab
-        for i in range(self.tabs.count()):
-            if self.tabs.tabText(i) == "Fix Game":
-                self.tabs.setCurrentIndex(i)
-                break
 
-    def _get_selected_acf(self):
-        from sff.game_specific import ACFInfo
-        if self.radio_steam.isChecked():
-            return self.game_combo.currentData()
-        path_str = self.path_edit.text().strip()
-        if not path_str:
-            return None
-        path = Path(path_str).resolve()
-        if not path.is_dir():
-            return None
-        name = self.outside_name_edit.text().strip() or path.name
-        app_id = self.outside_appid_edit.text().strip() or "0"
-        return ACFInfo(app_id, path)
 
-    # ── Web UI toggle ────────────────────────────────────────────
-
-    def _toggle_web_ui(self):
-        """Toggle between classic tab UI and new web-based UI."""
-        self._web_ui_active = not self._web_ui_active
-
-        if self._web_ui_active:
-            # Load web UI on first use
-            if not self._web_ui_loaded:
-                self._load_web_ui()
-                self._web_ui_loaded = True
-            self.tabs.setVisible(False)
-            self._web_view.setVisible(True)
-            self.menuBar().setVisible(False)
-            self._web_ui_toggle.setText(T("Switch to Classic UI"))
-        else:
-            self.tabs.setVisible(True)
-            self._web_view.setVisible(False)
-            self.menuBar().setVisible(True)
-            self._web_ui_toggle.setText(T("Switch to New UI"))
 
     def _load_web_ui(self):
         """Load index.html into the QWebEngineView."""
@@ -610,76 +271,8 @@ class SFFMainWindow(QMainWindow):
         self._worker_thread.started.connect(self._worker.run)
         self._worker_thread.start()
 
-    def _open_workshop(self):
-        acf = self._get_selected_acf()
-        if acf is None:
-            QMessageBox.warning(
-                self,
-                "No game selected",
-                "Select a Steam game from the list or set a path for a game outside of Steam.",
-            )
-            return
-        app_id = acf.app_id
-        if not app_id:
-            QMessageBox.warning(self, "No app ID", "Could not determine the game's App ID.")
-            return
-        from sff.gui.workshop_browser import open_workshop_browser
-        open_workshop_browser(app_id, self)
 
-    def _run_game_action(self, choice):
-        from sff.structs import MainMenu
-        acf = self._get_selected_acf()
-        if acf is None:
-            QMessageBox.warning(
-                self,
-                "No game selected",
-                "Select a Steam game from the list or set a path for a game outside of Steam.",
-            )
-            return
-        label = str(getattr(choice, "value", choice))
-        # Steamless: ask user to pick the exe directly so we never touch the Steam API
-        # on a background thread (that's what causes WinError 2)
-        if choice == MainMenu.REMOVE_DRM:
-            exe_path_str, _ = QFileDialog.getOpenFileName(
-                self,
-                "Select game executable",
-                str(acf.path),
-                "Executables (*.exe)",
-            )
-            if not exe_path_str:
-                return
-            exe_path = Path(exe_path_str)
-            self._start_worker(
-                lambda: self.ui.run_steamless_direct(acf, exe_path), label
-            )
-            return
-        self._start_worker(
-            lambda: self.ui.run_game_action_with_selection(choice, acf), label
-        )
 
-    def _run_steam_auto_gui(self):
-        from sff.steamauto import get_steamauto_cli_path, run_steamauto
-        if get_steamauto_cli_path() is None:
-            QMessageBox.critical(
-                self,
-                "SteamAutoCrack not found",
-                "SteamAutoCrack CLI is missing. Place the Steam-auto-crack repo in "
-                "third_party/SteamAutoCrack and build the CLI into third_party/SteamAutoCrack/cli/.",
-            )
-            return
-        acf = self._get_selected_acf()
-        if acf is None:
-            QMessageBox.warning(
-                self,
-                "No game selected",
-                "Select a Steam game from the list or set a path for a game outside of Steam.",
-            )
-            return
-        game_path = acf.path
-        app_id = acf.app_id or "0"
-        def _job():
-            run_steamauto(game_path, app_id, print_func=print)
-        self._start_worker(_job, label="SteamAutoCrack")
 
     def _run_steam_auto_with_acf(self, acf):
         """Web UI entry point — ACF already resolved, runs on main thread via _start_worker."""
@@ -697,22 +290,15 @@ class SFFMainWindow(QMainWindow):
                 }))
         self._start_worker(_job, label="SteamAutoCrack", on_done=_done)
 
+
+
     def _run_tool(self, func):
         label = getattr(func, "__name__", "tool")
         self._start_worker(func, label)
 
-    # ── Log ──────────────────────────────────────────────────────
-
-    def _show_log_window(self):
-        self._log_window.show()
-        self._log_window.raise_()
-        self._log_window.activateWindow()
-
-    def _append_log(self, text):
-        text = _ANSI_RE.sub("", text)
-        self.log_text.moveCursor(QTextCursor.MoveOperation.End)
-        self.log_text.insertPlainText(text)
-        self.log_text.moveCursor(QTextCursor.MoveOperation.End)
+    def run_tool(self, func):
+        """Public alias for _run_tool."""
+        self._run_tool(func)
 
     # ── Theme ────────────────────────────────────────────────────
 
@@ -720,11 +306,22 @@ class SFFMainWindow(QMainWindow):
         self._current_theme = key
         _, style = THEMES[key]
         self.setStyleSheet(style)
-        self.game_combo._update_arrow()
+        # self.game_combo._update_arrow()
         if save:
             from sff.storage.settings import set_setting
             from sff.structs import Settings as _S
             set_setting(_S.THEME, key)
+
+    # ── Log ──────────────────────────────────────────────────────
+
+    def _append_log(self, text: str):
+        self._log_window.append_text(text)
+        self._forward_stdout_to_web(text)
+
+    def _show_log_window(self):
+        self._log_window.show()
+        self._log_window.raise_()
+        self._log_window.activateWindow()
 
     # ── Log forwarding to web UI ────────────────────────────────
 
@@ -952,6 +549,8 @@ class SFFMainWindow(QMainWindow):
             set_language(get_setting(Settings.LANGUAGE))
         elif s == Settings.SAVE_WATCHER_INTERVAL:
             self._start_save_watcher()
+        elif s in (Settings.AUTO_UPDATE_ENABLED, Settings.UPDATE_CHANNEL):
+            self._start_update_checker()
 
     # ── Tray / close-to-tray ────────────────────────────────────
 
@@ -965,7 +564,13 @@ class SFFMainWindow(QMainWindow):
         self.close()
 
     def closeEvent(self, event):
-        if self._tray is not None and self._tray.minimize_to_tray:
+        from sff.storage.settings import get_setting
+        from sff.structs import Settings as _S
+        minimize_on_close = get_setting(_S.MINIMIZE_TO_TRAY_ON_CLOSE)
+        if minimize_on_close is None:
+            minimize_on_close = getattr(self._tray, "minimize_to_tray", False)
+        
+        if self._tray is not None and minimize_on_close:
             event.ignore()
             self.hide()
             if not self._tray_hide_notified:
@@ -977,6 +582,7 @@ class SFFMainWindow(QMainWindow):
         else:
             self._save_watcher_timer.stop()
             event.accept()
+            QApplication.quit() # Ensure app exits if tray is not holding it
 
     # ── Background save watcher ──────────────────────────────────
 
@@ -1125,5 +731,5 @@ class SFFMainWindow(QMainWindow):
             self,
             "About SteaMidra",
             f"SteaMidra\nVersion {VERSION}\n\n"
-            "https://github.com/Midrags/SFF/releases",
+            "https://github.com/bink-lab/sff/releases",
         )

@@ -2,12 +2,12 @@
 ; NSIS MUI2 script — 64-bit, admin, LZMA compression
 
 !define APPNAME    "SteaMidra"
-!define COMPANY    "Midrags"
+!define COMPANY    "bink-lab"
 !ifndef VERSION
   !define VERSION  "6.2.1"
 !endif
 !define EXENAME    "SteaMidra_GUI.exe"
-!define PUBLISHER  "Midrags"
+!define PUBLISHER  "bink-lab"
 
 Name "${APPNAME}"
 OutFile "SteaMidra-${VERSION}-Setup.exe"
@@ -35,7 +35,7 @@ BrandingText "${APPNAME} ${VERSION}"
 !define MUI_FINISHPAGE_RUN        "$INSTDIR\${EXENAME}"
 !define MUI_FINISHPAGE_RUN_TEXT   "Launch ${APPNAME}"
 !define MUI_FINISHPAGE_LINK       "Visit GitHub"
-!define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/Midrags/SFF"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/bink-lab/sff"
 
 ; Installer pages
 !insertmacro MUI_PAGE_WELCOME

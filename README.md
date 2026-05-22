@@ -1,6 +1,27 @@
-# SteaMidra Trusted by r/FMHY [FMHY](https://fmhy.net/gaming-tools#steam-epic) and r/Piracy [Piracy](https://www.reddit.com/r/Piracy/wiki/megathread/games/#:~:text=SteaMidra)
+# SteaMidra
 
-*Made by Midrag and his brother!*
+[![Build and Package](https://github.com/bink-lab/sff/actions/workflows/build.yml/badge.svg)](https://github.com/bink-lab/sff/actions/workflows/build.yml)
+
+> [!NOTE]
+> This is a **fork** of the original SteaMidra program with special enhancements designed to be feature-rich.
+
+*Original work by Midrag and his brother!*
+
+## Downloads
+
+### Stable Releases
+Download the latest stable version from the [Releases](https://github.com/bink-lab/sff/releases/latest) page.
+
+### 🌙 Nightly Builds (Experimental)
+Get the absolute latest (potentially unstable) features by downloading the [**Nightly Release**](https://github.com/Bink-lab/SFF/releases?q=nightly&expanded=true). 
+
+These builds are automatically updated on every commit to the `main` branch and are named using the short commit SHA (e.g., `a1b2c3d`):
+- **Windows (Setup)**: `SteaMidra-Windows-Setup-SHA.exe`
+- **Windows (Portable)**: `SteaMidra-Windows-Portable-SHA.zip`
+- **Linux (AppImage)**: `SteaMidra-Linux-AppImage-SHA.AppImage`
+
+*Note: Nightly builds include automatic commit notes so you can see what changed since the last stable release.*
+
 ## Educational use only. Use at your own risk.
 
 > ⚠️ **Antivirus Warning:** Before doing anything, add the entire **SteaMidra folder** (especially `sff\dlc_unlockers\resources`) to Windows Defender exclusions — the DLC unlocker tools inside trigger false positives.
@@ -36,7 +57,7 @@ Need help? Chat with us on our Discord server: https://discord.gg/V8aZqnbB84
 
 ### Step 1: SteaMidra
 
-Download the latest version from [here](https://github.com/Midrags/SFF/releases/latest).
+Download the latest version from [here](https://github.com/bink-lab/sff/releases/latest).
 You will get a ZIP file (`SteaMidra-x.x.x-windows.zip`). Extract it anywhere — you will see a folder containing `SteaMidra_GUI.exe` and an `_internal/` folder. Place this folder wherever you want (e.g. `C:\SteaMidra\`).
 
 **Do not run SteaMidra yet.** Complete Steps 2 and 3 first so all folders exist before first launch.

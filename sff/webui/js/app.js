@@ -129,6 +129,7 @@ window.App = (function() {
     function _initSidebar() {
         document.querySelectorAll('.nav-item[data-page]').forEach(function(btn) {
             btn.addEventListener('click', function() {
+                if (this.disabled) return;
                 navigateTo(this.dataset.page);
             });
         });

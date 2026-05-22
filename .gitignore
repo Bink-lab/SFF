@@ -1,4 +1,143 @@
-# Sensitive data (paths, passwords, local output)
+# --- OS Specific ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# --- IDEs and Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+.classpath
+.factorypath
+*.sublime-project
+*.sublime-workspace
+.vs/
+
+# --- .NET / C# ---
+DepotDL.CLI/bin/
+DepotDL.CLI/obj/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+ENV/
+env/
+python/
+.pytest_cache/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.pyo
+*.pyd
+pip-log.txt
+pip-delete-this-directory.txt
+.env
+.venv
+poetry.lock
+jspm_packages/
+.mypy_cache/
+.pyre_configuration
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# --- C / C++ / CMake ---
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.obj
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+# Note: Be careful if some DLLs are required to be tracked.
+# The project has c/midi_player_lib.dll, so we might want to allow that specifically.
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.pdb
+*.idb
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# --- Project Specific ---
+
+# Sensitive data / Local configs
 settings.bin
 settings_export.json
 credentials.json
@@ -7,18 +146,18 @@ crash.log
 recent_files.json
 api_cache.json
 analytics.json
+secret_store.json
 
-# Build artifacts and caches
+# Local caches and data
+dlc_unlocker_cache/
+backups/
+saved_lua/
+tmp/
+tmp_stfixer/
+
+# Third-party tool artifacts
 greenluma/
-build/
-dist/
-.hypothesis/
-.pytest_cache/
-htmlcov/
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
+GreenLuma/
 Codestouse/
 Codes to use/
 third_party/Codes to use/
@@ -31,23 +170,19 @@ SteamAutoCrack/SteamAutoCrack/
 typings/
 typings/steam/
 
-# Virtual environments & user-specific data
-.venv/
-venv/
-GreenLuma/
-dlc_unlocker_cache/
-backups/
-saved_lua/
-
-# Test / temp folders
-tmp/
-
-# Docs & special files
+# Docs & release artifacts (internal/dev only)
 docs/REPO_SETTINGS_AND_CONTRIBUTORS*
+docs/FUTURE_MANIFEST_INTEGRATION.md
 scripts/git-hooks/prepare-commit-msg
 UPLOAD_AND_PRIVACY.md
+prepare_consumer_release.py
+BEFORE_UPLOAD.md
+debug_analytics.py
+validate_installation.py
+convert_icon.py
+release-note.md
 
-# Archives & large files
+# Archives
 *.zip
 *.7z
 *.rar
@@ -59,43 +194,22 @@ SteaMidra-*.zip
 bfg-report/
 uv.lock
 notes.txt
+GEMINI.md
 
-# Dev/internal-only scripts and docs (not needed by end users)
-docs/FUTURE_MANIFEST_INTEGRATION.md
-prepare_consumer_release.py
-BEFORE_UPLOAD.md
-debug_analytics.py
-validate_installation.py
-convert_icon.py
-release-note.md
-
-# Tests and test tooling
-tests/
-pytest.ini
-run_tests.bat
-.coverage
-htmlcov/
-
-# Python bytecode and caches
-__pycache__/
-*.py[cod]
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-.pytest_cache/
-
-# DLL Analysis
+# DLL Analysis / Specific Debugging
 DLL_files/
 DLL_Analysis/
 analyze_dlls.py
 deep_analyze_dlls.py
 even_deeper_analyze_dlls.py
-tmp_stfixer/
 GLDLL/
 GLDLL_Analysis/
 diff_gl.py
 diff_output.txt
 _gc.py
-sff/_gc.py"
+sff/_gc.py
+
+# --- Whitelist tracked binaries ---
+!c/midi_player_lib.dll
+!SFF.ico
+!SFF.png

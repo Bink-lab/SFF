@@ -1,1 +1,4 @@
 # Add paths to exclude from release zips (path export-ignore)
+
+# Ensure batch files have CRLF line endings
+*.bat text eol=crlf

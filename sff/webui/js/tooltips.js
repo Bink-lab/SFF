@@ -14,10 +14,10 @@ window.Tooltips = (function() {
         _tooltip = document.createElement('div');
         _tooltip.className = 'tooltip-popup';
         _tooltip.style.cssText =
-            'position:fixed;background:var(--sidebar-bg);border:1px solid var(--border);' +
-            'color:var(--fg);font-size:12px;padding:6px 10px;border-radius:6px;' +
-            'max-width:280px;pointer-events:none;opacity:0;transition:opacity 0.15s;' +
-            'z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);line-height:1.4;';
+            'position:fixed;background:#FFFFFF;border:1px solid #FFFFFF;' +
+            'color:#000000;font-size:11px;font-weight:700;padding:8px 12px;border-radius:2px;' +
+            'max-width:280px;pointer-events:none;opacity:0;transition:opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);' +
+            'z-index:9999;box-shadow:0 10px 30px rgba(0,0,0,0.5);line-height:1.4;text-transform:uppercase;letter-spacing:0.5px;';
         document.body.appendChild(_tooltip);
 
         document.addEventListener('mouseover', _onMouseOver);

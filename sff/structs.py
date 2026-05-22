@@ -78,6 +78,52 @@ class MainMenu(Enum):
     EXIT = "Exit"
 
 
+class SettingCustomTypes(Enum):
+    DIR = auto()
+    FILE = auto()
+
+
+class ManifestGetModes(Enum):
+    AUTO = "Auto"
+    MANUAL = "Manual"
+
+
+class DLCTypes(Enum):
+    DEPOT = "DOWNLOAD REQUIRED"
+    NOT_DEPOT = "PRE-INSTALLED"
+    UNRELEASED = "UNRELEASED"
+
+
+class ContextMenuOptions(Enum):
+    INSTALL = "Install"
+    UNINSTALL = "Uninstall"
+
+
+class ReleaseType(Enum):
+    NIGHTLY = "Nightly (Continuous)"
+    STABLE = "Stable (Normal)"
+
+
+class OSType(Enum):
+    WINDOWS = auto()
+    LINUX = auto()
+    OTHER = auto()
+
+
+class SupportedLanguages(Enum):
+    EN = "en"
+    PT = "pt"
+    DE = "de"
+    ES = "es"
+    PL = "pl"
+    RU = "ru"
+    AR = "ar"
+    AUTO = "Auto"
+
+
+SettingType = Union[type, list[Enum], SettingCustomTypes]
+
+
 GameSpecificChoices = Literal[
     MainMenu.CRACK_GAME,
     MainMenu.REMOVE_DRM,
@@ -132,24 +178,6 @@ class MainReturnCode(Enum):
     EXIT = auto()
 
 
-class SettingCustomTypes(Enum):
-    DIR = auto()
-    FILE = auto()
-
-
-class SupportedLanguages(Enum):
-    EN = "en"
-    PT = "pt"
-    DE = "de"
-    ES = "es"
-    PL = "pl"
-    RU = "ru"
-    AR = "ar"
-    AUTO = "Auto"
-
-SettingType = Union[type, list[Enum], SettingCustomTypes]
-
-
 class SettingItem(NamedTuple):
     key_name: str
     "The key name of the setting (used in the savefile)"
@@ -169,6 +197,9 @@ class Settings(Enum):
     STEAM_PATH = SettingItem(
         "steam_path", "Steam Installation Path", False, SettingCustomTypes.DIR
     )
+    DEFAULT_GAME_INSTALL_PATH = SettingItem(
+        "default_game_install_path", "Default Game Install Location", False, SettingCustomTypes.DIR
+    )
     STEAM_USER = SettingItem("steam_user", "Steam Username", False, str)
     STEAM_PASS = SettingItem("steam_pass", "Steam Password", True, str)
     STEAM32_ID = SettingItem("steam32_id", "Steam32 ID", False, str)
@@ -181,11 +212,15 @@ class Settings(Enum):
     STEAM_WEB_API_KEY = SettingItem("steam_web_api_key", "Steam Web API Key", True, str)
     PLAY_MUSIC = SettingItem("play_music", "Play Music", False, bool)
     THEME = SettingItem("theme", "Theme", False, str)
+    FLOATING_ICON_POSITION = SettingItem("floating_icon_position", "Floating Icon Position", False, str)
     ONLINE_FIX_USER = SettingItem("online_fix_user", "Online-fix.me Username", False, str)
     ONLINE_FIX_PASS = SettingItem("online_fix_pass", "Online-fix.me Password", True, str)
     PARALLEL_DOWNLOADS = SettingItem("parallel_downloads", "Parallel Download Workers", False, str)
     BACKUP_RETENTION = SettingItem("backup_retention", "Backup Retention Count", False, str)
     ENABLE_NOTIFICATIONS = SettingItem("enable_notifications", "Enable Desktop Notifications", False, bool)
+    AUTO_UPDATE_ENABLED = SettingItem("auto_update_enabled", "Enable Auto Update", False, bool)
+    UPDATE_CHANNEL = SettingItem("update_channel", "Update Channel", False, list(ReleaseType))
+    MINIMIZE_TO_TRAY_ON_CLOSE = SettingItem("minimize_to_tray_on_close", "Minimize to Tray on Close", False, bool)
     USE_PARALLEL_DOWNLOADS = SettingItem("use_parallel_downloads", "Use Parallel Downloads", False, bool)
     ACTIVE_UNLOCKER_PER_GAME = SettingItem("active_unlocker_per_game", "Active DLC Unlocker Per Game", False, dict)
     DLC_UNLOCKER_CACHE_DIR = SettingItem("dlc_unlocker_cache", "DLC Unlocker Cache Directory", False, str)
@@ -203,6 +238,7 @@ class Settings(Enum):
     SAVE_WATCHER_INTERVAL = SettingItem("save_watcher_interval", "Background Save Watcher Interval (minutes, 0=off)", False, str)
     LAST_BACKUP_PROVIDER_CONFIG = SettingItem("last_backup_provider_config", "Last Cloud Save Provider Config (managed automatically)", False, str)
     CLOUD_PROVIDER = SettingItem("cloud_provider", "Cloud Save Provider", False, str)
+    LAST_SEEN_NIGHTLY_TIMESTAMP = SettingItem("last_seen_nightly_timestamp", "Last Seen Nightly Timestamp", False, str)
     CLOUD_RCLONE_EXE = SettingItem("cloud_rclone_exe", "Cloud Save rclone Executable", False, str)
     CLOUD_RCLONE_REMOTE = SettingItem("cloud_rclone_remote", "Cloud Save rclone Remote", False, str)
 
@@ -337,30 +373,3 @@ class MidiFiles(Enum):
     MIDI_PLAYER_DLL = root_folder() / f"c/midi_player_lib.{_midi_lib_ext}"
     SOUNDFONT = root_folder() / "c/Extended_Super_Mario_64_Soundfont.sf2"
     MIDI = root_folder() / "c/th105_broken_moon_redpaper_.mid"
-
-
-class ManifestGetModes(Enum):
-    AUTO = "Auto"
-    MANUAL = "Manual"
-
-
-class DLCTypes(Enum):
-    DEPOT = "DOWNLOAD REQUIRED"
-    NOT_DEPOT = "PRE-INSTALLED"
-    UNRELEASED = "UNRELEASED"
-
-
-class ContextMenuOptions(Enum):
-    INSTALL = "Install"
-    UNINSTALL = "Uninstall"
-
-
-class ReleaseType(Enum):
-    PRERELEASE = "Pre-release (Buggy)"
-    STABLE = "Stable"
-
-
-class OSType(Enum):
-    WINDOWS = auto()
-    LINUX = auto()
-    OTHER = auto()

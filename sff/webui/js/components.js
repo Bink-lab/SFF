@@ -37,8 +37,8 @@ window.Components = (function() {
         try { localStorage.setItem(_COVER_CACHE_PREFIX + appId, url); } catch(e) {}
     }
 
-    // SVG placeholder for missing game images (image-off icon)
-    var NO_IMAGE_SVG = '<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M21 21H3a2 2 0 01-2-2V5a2 2 0 012-2h18a2 2 0 012 2v14c0 .553-.224 1.053-.586 1.414"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+    // SVG placeholder for missing game images (minimalist image icon)
+    var NO_IMAGE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
 
     function getCoverUrls(appId, canonicalUrl) {
         var cached = _getCachedCoverUrl(appId);
@@ -69,18 +69,18 @@ window.Components = (function() {
             badgesHtml += '<span class="badge badge-downloaded">Installed</span>';
         }
 
-        var lastUpdated = game.last_updated ? '<div class="game-card-meta">Updated: ' + game.last_updated + '</div>' : '';
+        var lastUpdated = game.last_updated ? '<div class="game-card-meta">Updated ' + game.last_updated + '</div>' : '';
 
         card.innerHTML =
             '<div class="game-card-img-wrap"></div>' +
             '<div class="game-card-badges">' + badgesHtml + '</div>' +
             '<div class="game-card-body">' +
                 '<div class="game-card-name">' + escapeHtml(game.name) + '</div>' +
-                '<div class="game-card-appid">App ID: ' + game.app_id + '</div>' +
+                '<div class="game-card-appid">APP ID ' + game.app_id + '</div>' +
                 lastUpdated +
             '</div>' +
             '<div class="game-card-actions">' +
-                '<button class="btn btn-primary btn-download" data-appid="' + game.app_id + '" data-name="' + escapeHtml(game.name) + '" data-tooltip="Download this game">Download</button>' +
+                '<button class="btn btn-primary btn-download" data-appid="' + game.app_id + '" data-name="' + escapeHtml(game.name) + '" data-tooltip="DOWNLOAD THIS GAME">DOWNLOAD</button>' +
             '</div>';
 
         // Load image with 8-tier fallback chain then SVG placeholder
