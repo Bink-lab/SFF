@@ -52,7 +52,7 @@ DepotDL.CLI --lua "path/to/game.lua" --manifests-dir "path/to/manifests/" --outp
 * `-o, --output <dir>` (Optional): Target directory for download. Defaults to `./downloads/App_<appid>`.
 * `-d, --ddmod <path>` (Optional): Direct path to `DepotDownloaderMod.dll`. If not specified, the tool automatically scans relative paths and SFF's `third_party/DDMod/` directory.
 * `-n, --dotnet <path>` (Optional): Direct path to `dotnet` executable. If not specified, searches the environment PATH and common runtime paths.
-* `--max-downloads <n>` (Optional): Parallel chunk downloads per depot. Defaults to `64` and clamps to `128`.
+* `--max-downloads <n>` (Optional): Parallel chunk downloads per depot. Defaults to `64` and is clamped to the range `1–128`.
 
 ## How It Works
 1. Scans the provided Lua file to extract the AppID, depot keys (`addappid`), and manifest IDs (`setManifestid`) using regular expressions.
