@@ -1657,11 +1657,16 @@ namespace DepotDL.CLI
             IniSettings.Save(session);
         }
 
-        private static IDisposable CenterConsoleOutput(int contentWidth)
+        internal static IDisposable CenterConsoleOutput(int contentWidth)
         {
             var writer = Console.Out;
             Console.SetOut(new CenteredTextWriter(writer, GetLeftPad(contentWidth)));
             return new ConsoleOutputScope(writer);
+        }
+
+        internal static int GetCenterLeftPad(int contentWidth)
+        {
+            return GetLeftPad(contentWidth);
         }
 
         private sealed class ConsoleOutputScope : IDisposable
@@ -1675,6 +1680,7 @@ namespace DepotDL.CLI
 
             public void Dispose()
             {
+                try { Console.Out.Flush(); } catch { }
                 Console.SetOut(_previousWriter);
             }
         }
@@ -1719,6 +1725,11 @@ namespace DepotDL.CLI
                 {
                     Write(ch);
                 }
+            }
+
+            public override void Flush()
+            {
+                _inner.Flush();
             }
         }
 

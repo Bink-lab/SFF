@@ -236,6 +236,7 @@ namespace DepotDL.CLI
                 }
                 outputPath = Path.GetFullPath(outputPath);
                 Directory.CreateDirectory(outputPath);
+                DownloadTui.LeftPad = TuiDashboard.GetCenterLeftPad(80);
                 DownloadTui.WriteHeader(appId, depots.Count, outputPath);
                 if (manifestScanStatus != null)
                 {
