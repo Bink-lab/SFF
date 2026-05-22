@@ -14,7 +14,7 @@ if "%APP_VERSION%"=="" (
 echo Version: %APP_VERSION%
 
 :: Patch installer.nsi fallback version to match strings.py
-powershell -NoProfile -Command "(Get-Content installer.nsi) -replace '(!define VERSION\s+\")[^\"]+\"', ('!define VERSION  \"' + '%APP_VERSION%' + '\"') | Set-Content installer.nsi"
+powershell -NoProfile -Command "(Get-Content installer.nsi) -replace '(!define VERSION\s+\")[^\"]+\"', ('!define VERSION  \"' + '%APP_VERSION%' + '\"') | Set-Content -Encoding UTF8 installer.nsi"
 echo Patched installer.nsi to version %APP_VERSION%
 
 :: Allow NSI-only mode: pass "nsi" as first argument to skip PyInstaller
