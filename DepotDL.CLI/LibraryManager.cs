@@ -153,7 +153,7 @@ namespace DepotDL.CLI
             return false;
         }
 
-        public static Dictionary<string, DepotInfo> ParseLuaConfig(string luaContent, out string appId)
+        public static Dictionary<string, DepotInfo> ParseLuaConfig(string luaContent, out string appId, string? luaPath = null)
         {
             appId = string.Empty;
             var depots = new Dictionary<string, DepotInfo>();
@@ -193,6 +193,21 @@ namespace DepotDL.CLI
                     depots[depotId] = depot;
                 }
                 depot.ManifestId = manifestId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(luaPath))
+            {
+                var metadata = SteamAppInfoProvider.LoadDepotMetadata(appId);
+                foreach (var depot in depots.Values)
+                {
+                    if (!metadata.TryGetValue(depot.DepotId, out var meta))
+                    {
+                        continue;
+                    }
+                    depot.Name = meta.Name;
+                    depot.OsList = meta.OsList;
+                    depot.OsArch = meta.OsArch;
+                }
             }
 
             return depots;

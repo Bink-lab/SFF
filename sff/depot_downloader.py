@@ -32,6 +32,7 @@ from sff.utils import root_folder
 
 KEYS_TMP = Path(tempfile.gettempdir()) / "mistwalker_keys.vdf"
 MANIFESTS_TMP = Path(tempfile.gettempdir()) / "mistwalker_manifests"
+MAX_DEPOT_DOWNLOADS = 64
 
 
 def get_deps_dir() -> Path:
@@ -157,7 +158,7 @@ def run_download(
             "-app", appid,
             "-depot", depot_id_str,
             "-depotkeys", str(KEYS_TMP),
-            "-max-downloads", "32",
+            "-max-downloads", str(MAX_DEPOT_DOWNLOADS),
             "-os", "windows",
             "-validate",
             "-dir", str(download_dir),
