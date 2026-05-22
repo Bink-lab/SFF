@@ -174,9 +174,11 @@ namespace DepotDL.CLI
                     depots = allParsedDepots;
                 }
 
+                depots = LibraryManager.FilterDownloadableDepots(depots, appId);
+
                 if (depots.Count == 0)
                 {
-                    LogError("[Error] No depot decryption keys or manifest IDs found.");
+                    LogError("[Error] No downloadable depots with decryption keys found.");
                     return 1;
                 }
 
@@ -241,14 +243,14 @@ namespace DepotDL.CLI
 
                     var argsList = new List<string>
                     {
-                        $"\"{ddmodPath}\"",
+                        ddmodPath,
                         "-app", appId,
                         "-depot", depot.DepotId,
-                        "-depotkeys", $"\"{_tempKeysPath}\"",
+                        "-depotkeys", _tempKeysPath,
                         "-max-downloads", "32",
                         "-os", "windows",
                         "-validate",
-                        "-dir", $"\"{outputPath}\""
+                        "-dir", outputPath
                     };
 
                     if (!string.IsNullOrEmpty(depot.ManifestId))
@@ -260,13 +262,13 @@ namespace DepotDL.CLI
                         if (manifestFiles.TryGetValue(keyCombo, out var manifestPath))
                         {
                             argsList.Add("-manifestfile");
-                            argsList.Add($"\"{manifestPath}\"");
+                            argsList.Add(manifestPath);
                             DownloadTui.WriteStatus("Manifest", $"Using local file {Path.GetFileName(manifestPath)}", ConsoleColor.Green);
                         }
                         else if (manifestFiles.TryGetValue(depot.ManifestId, out var manifestPathById))
                         {
                             argsList.Add("-manifestfile");
-                            argsList.Add($"\"{manifestPathById}\"");
+                            argsList.Add(manifestPathById);
                             DownloadTui.WriteStatus("Manifest", $"Using local file {Path.GetFileName(manifestPathById)}", ConsoleColor.Green);
                         }
                         else
@@ -275,25 +277,31 @@ namespace DepotDL.CLI
                         }
                     }
 
-                    var processArgs = string.Join(" ", argsList);
-
                     var psi = new ProcessStartInfo
                     {
                         FileName = dotnetPath,
-                        Arguments = processArgs,
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         CreateNoWindow = true,
                         WorkingDirectory = Path.GetDirectoryName(ddmodPath) ?? AppDomain.CurrentDomain.BaseDirectory
                     };
+                    foreach (var arg in argsList)
+                    {
+                        psi.ArgumentList.Add(arg);
+                    }
 
                     var depotOutputErrors = new List<string>();
+                    string? lastOutputLine = null;
 
                     using (var process = new Process { StartInfo = psi })
                     {
                         process.OutputDataReceived += (sender, lineEventArgs) =>
                         {
+                            if (!string.IsNullOrWhiteSpace(lineEventArgs.Data))
+                            {
+                                lastOutputLine = lineEventArgs.Data;
+                            }
                             if (IsDepotDownloadFailure(lineEventArgs.Data))
                             {
                                 depotOutputErrors.Add(lineEventArgs.Data!);
@@ -304,6 +312,7 @@ namespace DepotDL.CLI
                         {
                             if (!string.IsNullOrEmpty(lineEventArgs.Data))
                             {
+                                lastOutputLine = lineEventArgs.Data;
                                 if (IsDepotDownloadFailure(lineEventArgs.Data))
                                 {
                                     depotOutputErrors.Add(lineEventArgs.Data);
@@ -325,6 +334,8 @@ namespace DepotDL.CLI
                             hadErrors = true;
                             var reason = depotOutputErrors.Count > 0
                                 ? depotOutputErrors[depotOutputErrors.Count - 1]
+                                : !string.IsNullOrWhiteSpace(lastOutputLine)
+                                    ? $"{lastOutputLine} (exit code {process.ExitCode})"
                                 : $"DepotDownloaderMod exited with code {process.ExitCode}";
                             DownloadTui.WriteStatus("Failed", reason, ConsoleColor.Red);
                         }

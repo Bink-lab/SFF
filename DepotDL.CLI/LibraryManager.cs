@@ -198,6 +198,39 @@ namespace DepotDL.CLI
             return depots;
         }
 
+        public static bool IsDownloadableDepot(DepotInfo depot, string? appId = null)
+        {
+            return !string.IsNullOrWhiteSpace(depot.DepotId) &&
+                !string.Equals(depot.DepotId, appId, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(depot.DecryptionKey);
+        }
+
+        public static Dictionary<string, DepotInfo> FilterDownloadableDepots(Dictionary<string, DepotInfo> depots, string? appId = null)
+        {
+            var result = new Dictionary<string, DepotInfo>();
+            foreach (var depot in depots.Values)
+            {
+                if (IsDownloadableDepot(depot, appId))
+                {
+                    result[depot.DepotId] = depot;
+                }
+            }
+            return result;
+        }
+
+        public static List<DepotInfo> FilterDownloadableDepots(List<DepotInfo> depots, string? appId = null)
+        {
+            var result = new List<DepotInfo>();
+            foreach (var depot in depots)
+            {
+                if (IsDownloadableDepot(depot, appId))
+                {
+                    result.Add(depot);
+                }
+            }
+            return result;
+        }
+
         private static void ClearReadOnlyAttributes(DirectoryInfo directory)
         {
             if (!directory.Exists) return;

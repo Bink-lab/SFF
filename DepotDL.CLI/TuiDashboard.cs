@@ -214,7 +214,15 @@ namespace DepotDL.CLI
                             continue;
                         }
 
-                        var chosenDepots = RunCheckboxSelector($"SELECT DEPOTS FOR APP {session.AppId}", session.AllDepots, session.SelectedDepots);
+                        var downloadableDepots = LibraryManager.FilterDownloadableDepots(session.AllDepots, session.AppId);
+                        if (downloadableDepots.Count == 0)
+                        {
+                            PromptText("DOWNLOAD PROCESS", "No downloadable depots with decryption keys found. Press Enter to return.", "");
+                            continue;
+                        }
+
+                        var selectedDownloadableDepots = LibraryManager.FilterDownloadableDepots(session.SelectedDepots, session.AppId);
+                        var chosenDepots = RunCheckboxSelector($"SELECT DEPOTS FOR APP {session.AppId}", downloadableDepots, selectedDownloadableDepots);
                         if (chosenDepots == null)
                         {
                             continue;
@@ -1580,7 +1588,7 @@ namespace DepotDL.CLI
             session.AppId = appId;
 
             session.AllDepots = new List<DepotInfo>(parsedDepots.Values);
-            session.SelectedDepots = new List<DepotInfo>(session.AllDepots);
+            session.SelectedDepots = LibraryManager.FilterDownloadableDepots(session.AllDepots, appId);
 
             string gameName = Path.GetFileNameWithoutExtension(session.LuaPath);
             if (string.IsNullOrEmpty(gameName)) gameName = $"App_{appId}";
