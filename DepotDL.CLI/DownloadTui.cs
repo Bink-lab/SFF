@@ -70,7 +70,7 @@ namespace DepotDL.CLI
             string pad = Pad;
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(pad + "  │ ");
-            WriteColor(TuiText.Pad(label, 12), color);
+            WriteColor(TuiText.Pad(label, 16), color);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" │ ");
             WriteColor(message, ConsoleColor.Gray);
@@ -125,18 +125,34 @@ namespace DepotDL.CLI
             }
         }
 
-        public static void WriteFinal(bool success)
+        public static void WriteFinal(bool success, int totalDepots, int successfulDepots, string outputPath)
         {
             string pad = Pad;
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(pad + "╔══════════════════════════════════════════════════════════════════════════════╗");
             Console.Write(pad + "║ ");
-            WriteColor(TuiText.Pad(success ? "Download actions completed" : "Download actions finished with errors", 76), success ? ConsoleColor.Green : ConsoleColor.Red);
+            
+            string title = success ? "DOWNLOAD ACTIONS COMPLETED" : "DOWNLOAD ACTIONS FINISHED WITH ERRORS";
+            int titlePadding = (76 - title.Length) / 2;
+            string paddedTitle = new string(' ', titlePadding) + title + new string(' ', 76 - title.Length - titlePadding);
+            
+            WriteColor(paddedTitle, success ? ConsoleColor.Green : ConsoleColor.Red);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(" ║");
+            Console.WriteLine(pad + "╠══════════════════════════════════════════════════════════════════════════════╣");
+            
+            WriteInfoRow("Output Folder", TuiText.ShortenPath(outputPath, 55), ConsoleColor.Gray);
+            WriteInfoRow("Selected Depots", totalDepots.ToString(), ConsoleColor.White);
+            
+            string successPct = totalDepots > 0 ? $"{(double)successfulDepots / totalDepots * 100:F1}%" : "0%";
+            string statusVal = $"{successfulDepots} / {totalDepots} ({successPct} OK)";
+            WriteInfoRow("Successful", statusVal, success ? ConsoleColor.Green : ConsoleColor.Yellow);
+            
+            Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(pad + "╚══════════════════════════════════════════════════════════════════════════════╝");
             Console.ResetColor();
+            Console.WriteLine();
         }
 
         private static void WriteInfoRow(string key, string value, ConsoleColor valueColor)

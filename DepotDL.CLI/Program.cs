@@ -29,6 +29,9 @@ namespace DepotDL.CLI
         private static readonly object _drawLock = new object();
         private static readonly Queue<Action> _pendingLogs = new Queue<Action>();
         private static bool _isTty = false;
+        private static DateTime _lastDrawTime = DateTime.MinValue;
+        private static readonly TimeSpan _drawThrottleInterval = TimeSpan.FromMilliseconds(100);
+        private static readonly int[] _lastSlotLengths = new int[2];
 
         static int Main(string[] args)
         {
@@ -290,7 +293,7 @@ namespace DepotDL.CLI
                                 _slots[slotId].Percent = null;
                                 _slots[slotId].ActiveValidationFile = null;
                             }
-                            DrawSlots();
+                            DrawSlots(force: true);
 
                             bool depotOk = false;
 
@@ -449,7 +452,7 @@ namespace DepotDL.CLI
                                 _slots[slotId].Percent = null;
                                 _slots[slotId].ActiveValidationFile = null;
                             }
-                            DrawSlots();
+                            DrawSlots(force: true);
                         }
                     }));
                 }
@@ -485,7 +488,7 @@ namespace DepotDL.CLI
                     }
                 }
 
-                DownloadTui.WriteFinal(!hadErrors);
+                DownloadTui.WriteFinal(!hadErrors, totalDepots, successfulDepots, outputPath);
 
                 if (hadErrors)
                 {
@@ -601,7 +604,7 @@ namespace DepotDL.CLI
                             _slots[slotId].Status = "Connecting...";
                             _slots[slotId].Percent = null;
                         }
-                        DrawSlots();
+                        DrawSlots(force: true);
                     }
                     else if (line.StartsWith("Pre-allocating", StringComparison.OrdinalIgnoreCase))
                     {
@@ -610,7 +613,7 @@ namespace DepotDL.CLI
                             _slots[slotId].Status = "Pre-allocating...";
                             _slots[slotId].Percent = null;
                         }
-                        DrawSlots();
+                        DrawSlots(force: true);
                     }
                     return;
                 }
@@ -623,7 +626,7 @@ namespace DepotDL.CLI
                         _slots[slotId].Status = "Validating";
                         _slots[slotId].Percent = null;
                     }
-                    DrawSlots();
+                    DrawSlots(force: true);
                     return;
                 }
 
@@ -665,64 +668,96 @@ namespace DepotDL.CLI
         private static void DrawSlotLine(int slotId)
         {
             // Matches the DownloadTui.WriteStatus layout:
-            //   pad + "  │ " + Pad(label, 12) + " │ " + message
+            //   pad + "  │ " + Pad(label, 16) + " │ " + message
             var slot = _slots[slotId];
             string pad = new string(' ', DownloadTui.LeftPad);
+            int charsWritten = pad.Length;
 
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(pad + "  │ ");
+            charsWritten += 4;
+
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write(TuiText.Pad($"Slot {slotId + 1}", 12));
+            string slotLabel = TuiText.Pad($"Slot {slotId + 1}", 16);
+            Console.Write(slotLabel);
+            charsWritten += 16;
+
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write(" │ ");
+            charsWritten += 3;
 
             if (slot.DepotId == null)
             {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write("Waiting...");
-                Console.ResetColor();
-                return;
-            }
-
-            // Build the status message portion to match WriteStatus value style
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write(TuiText.Pad(slot.DepotId, 8));
-
-            if (slot.Percent != null)
-            {
-                double pct = slot.Percent.Value;
-                int barWidth = 30;
-                int filled = (int)Math.Round(pct / 100.0 * barWidth);
-                if (filled < 0) filled = 0;
-                if (filled > barWidth) filled = barWidth;
-
-                string filledBar = new string('\u2588', filled);
-                string emptyBar = new string('\u2591', barWidth - filled);
-
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write($"{pct,5:F1}%");
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.Write(" [");
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write(filledBar);
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.Write(emptyBar);
-                Console.Write("] ");
-
-                Console.ForegroundColor = ConsoleColor.Gray;
-                Console.Write(slot.Status);
+                charsWritten += 10;
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Gray;
-                Console.Write(slot.Status);
+                // Build the status message portion to match WriteStatus value style
+                Console.ForegroundColor = ConsoleColor.White;
+                string depotLabel = TuiText.Pad(slot.DepotId, 8);
+                Console.Write(depotLabel);
+                charsWritten += 8;
+
+                if (slot.Percent != null)
+                {
+                    double pct = slot.Percent.Value;
+                    int barWidth = 30;
+                    int filled = (int)Math.Round(pct / 100.0 * barWidth);
+                    if (filled < 0) filled = 0;
+                    if (filled > barWidth) filled = barWidth;
+
+                    string filledBar = new string('\u2588', filled);
+                    string emptyBar = new string('\u2591', barWidth - filled);
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    string pctStr = $"{pct,5:F1}%";
+                    Console.Write(pctStr);
+                    charsWritten += pctStr.Length;
+
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.Write(" [");
+                    charsWritten += 2;
+
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write(filledBar);
+                    charsWritten += filledBar.Length;
+
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.Write(emptyBar);
+                    charsWritten += emptyBar.Length;
+
+                    Console.Write("] ");
+                    charsWritten += 2;
+
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    Console.Write(slot.Status);
+                    charsWritten += slot.Status.Length;
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    Console.Write(slot.Status);
+                    charsWritten += slot.Status.Length;
+                }
+
+                if (!string.IsNullOrEmpty(slot.ActiveValidationFile))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    string valStr = $"  {TuiText.Shorten(slot.ActiveValidationFile, 20)}";
+                    Console.Write(valStr);
+                    charsWritten += valStr.Length;
+                }
             }
 
-            if (!string.IsNullOrEmpty(slot.ActiveValidationFile))
+            // Pad the rest of the line with spaces if it's shorter than the previous write for this slot.
+            int lastLen = _lastSlotLengths[slotId];
+            if (charsWritten < lastLen)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.Write($"  {TuiText.Shorten(slot.ActiveValidationFile, 20)}");
+                Console.Write(new string(' ', lastLen - charsWritten));
             }
+            _lastSlotLengths[slotId] = charsWritten;
 
             Console.ResetColor();
         }
@@ -743,14 +778,23 @@ namespace DepotDL.CLI
                 ClearCurrentLine();
                 Console.WriteLine();
                 Console.SetCursorPosition(0, startTop);
+
+                _lastSlotLengths[0] = 0;
+                _lastSlotLengths[1] = 0;
             }
             catch { }
         }
 
-        private static void DrawSlots()
+        private static void DrawSlots(bool force = false)
         {
             lock (_drawLock)
             {
+                if (!force && _pendingLogs.Count == 0 && DateTime.UtcNow - _lastDrawTime < _drawThrottleInterval)
+                {
+                    return;
+                }
+                _lastDrawTime = DateTime.UtcNow;
+
                 if (_isTty)
                 {
                     try
@@ -767,12 +811,11 @@ namespace DepotDL.CLI
                             logAction();
                         }
 
-                        // Redraw the two slot lines
-                        ClearCurrentLine();
+                        // Redraw the two slot lines without clear-blanking to avoid flickering.
+                        // Any leftover characters are cleared via character-based padding inside DrawSlotLine.
                         DrawSlotLine(0);
                         Console.WriteLine();
 
-                        ClearCurrentLine();
                         DrawSlotLine(1);
                         Console.WriteLine();
                     }

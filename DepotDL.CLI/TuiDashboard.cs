@@ -242,20 +242,15 @@ namespace DepotDL.CLI
                         Console.Clear();
                         
                         int exitCode = Program.TriggerDownloadProcess(session.LuaPath, session.ManifestsDir, session.OutputDir, ddmodPath, dotnetPath, session.SelectedDepots);
-                        
+
                         if (exitCode == 0)
                         {
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine("\n[Success] Game downloaded and registered successfully.");
+                            PromptText("DOWNLOAD SUCCESS", "Game downloaded and registered successfully! Press Enter.", "");
                         }
                         else
                         {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine($"\n[Error] Download finished with exit code: {exitCode}");
+                            PromptText("DOWNLOAD FAILED", $"Download finished with exit code: {exitCode}. Press Enter.", "");
                         }
-                        Console.ResetColor();
-                        Console.WriteLine("\nPress any key to return to main menu...");
-                        Console.ReadKey(true);
                         verified = LibraryManager.VerifyLibraryOnStartup(out totalCount, out missingCount);
                     }
                     else if (menuIndex == 6)
