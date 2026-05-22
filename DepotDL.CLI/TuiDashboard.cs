@@ -1582,7 +1582,7 @@ namespace DepotDL.CLI
             string luaContent = File.ReadAllText(session.LuaPath);
 
             string appId;
-            var parsedDepots = LibraryManager.ParseLuaConfig(luaContent, out appId);
+            var parsedDepots = LibraryManager.ParseLuaConfig(luaContent, out appId, session.LuaPath);
 
             if (string.IsNullOrEmpty(appId)) return;
             session.AppId = appId;
@@ -1716,7 +1716,7 @@ namespace DepotDL.CLI
                     {
                         Console.BackgroundColor = ConsoleColor.Cyan;
                         Console.ForegroundColor = ConsoleColor.Black;
-                        Console.WriteLine($">  {checkbox} Depot {options[i].DepotId} (Manifest ID: {options[i].ManifestId})");
+                        Console.WriteLine($">  {checkbox} {FormatDepotSelectionLine(options[i])}");
                         Console.ResetColor();
                     }
                     else
@@ -1724,12 +1724,12 @@ namespace DepotDL.CLI
                         if (isChecked)
                         {
                             Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine($"   {checkbox} Depot {options[i].DepotId} (Manifest ID: {options[i].ManifestId})");
+                            Console.WriteLine($"   {checkbox} {FormatDepotSelectionLine(options[i])}");
                         }
                         else
                         {
                             Console.ForegroundColor = ConsoleColor.Gray;
-                            Console.WriteLine($"   {checkbox} Depot {options[i].DepotId} (Manifest ID: {options[i].ManifestId})");
+                            Console.WriteLine($"   {checkbox} {FormatDepotSelectionLine(options[i])}");
                         }
                         Console.ResetColor();
                     }
@@ -1806,6 +1806,44 @@ namespace DepotDL.CLI
             }
             catch { }
             return files;
+        }
+
+        private static string FormatDepotSelectionLine(DepotInfo depot)
+        {
+            var parts = new List<string> { $"Depot {depot.DepotId}" };
+            if (!string.IsNullOrWhiteSpace(depot.Name))
+            {
+                parts.Add(TuiText.Shorten(depot.Name, 24));
+            }
+
+            var os = FormatDepotOs(depot);
+            if (!string.IsNullOrWhiteSpace(os))
+            {
+                parts.Add($"OS: {os}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(depot.ManifestId))
+            {
+                parts.Add($"Manifest ID: {depot.ManifestId}");
+            }
+
+            return string.Join(" | ", parts);
+        }
+
+        private static string FormatDepotOs(DepotInfo depot)
+        {
+            if (string.IsNullOrWhiteSpace(depot.OsList) && string.IsNullOrWhiteSpace(depot.OsArch))
+            {
+                return string.Empty;
+            }
+
+            var os = string.IsNullOrWhiteSpace(depot.OsList) ? "any" : depot.OsList.Replace(",", "/");
+            if (string.IsNullOrWhiteSpace(depot.OsArch))
+            {
+                return os;
+            }
+
+            return $"{os} {depot.OsArch}";
         }
 
         private static string? PromptText(string title, string prompt, string defaultValue)

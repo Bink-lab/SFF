@@ -8,6 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="SteamKit2">
+      <HintPath>..\third_party\DDMod\SteamKit2.dll</HintPath>
+    </Reference>
     <None Include="..\third_party\DDMod\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

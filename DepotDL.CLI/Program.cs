@@ -158,7 +158,13 @@ namespace DepotDL.CLI
                     {
                         if (allParsedDepots.TryGetValue(sel.DepotId, out var parsedDepot))
                         {
-                            var finalDepot = new DepotInfo { DepotId = sel.DepotId };
+                            var finalDepot = new DepotInfo
+                            {
+                                DepotId = sel.DepotId,
+                                Name = !string.IsNullOrEmpty(sel.Name) ? sel.Name : parsedDepot.Name,
+                                OsList = !string.IsNullOrEmpty(sel.OsList) ? sel.OsList : parsedDepot.OsList,
+                                OsArch = !string.IsNullOrEmpty(sel.OsArch) ? sel.OsArch : parsedDepot.OsArch
+                            };
                             finalDepot.DecryptionKey = !string.IsNullOrEmpty(sel.DecryptionKey) ? sel.DecryptionKey : parsedDepot.DecryptionKey;
                             finalDepot.ManifestId = !string.IsNullOrEmpty(sel.ManifestId) ? sel.ManifestId : parsedDepot.ManifestId;
                             depots[sel.DepotId] = finalDepot;
