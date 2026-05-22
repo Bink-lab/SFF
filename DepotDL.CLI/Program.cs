@@ -60,6 +60,7 @@ namespace DepotDL.CLI
             string? outputPath = null;
             string? ddmodPath = null;
             string? dotnetPath = null;
+            int maxDownloads = DepotDownloadDefaults.MaxDownloads;
             bool showHelp = false;
 
             for (int i = 0; i < args.Length; i++)
@@ -85,6 +86,12 @@ namespace DepotDL.CLI
                     case "--dotnet":
                     case "-n":
                         if (i + 1 < args.Length) dotnetPath = args[++i];
+                        break;
+                    case "--max-downloads":
+                        if (i + 1 < args.Length && int.TryParse(args[++i], out var parsedMaxDownloads))
+                        {
+                            maxDownloads = DepotDownloadDefaults.NormalizeMaxDownloads(parsedMaxDownloads);
+                        }
                         break;
                     case "--help":
                     case "-h":
@@ -122,7 +129,7 @@ namespace DepotDL.CLI
                 return 1;
             }
 
-            return ProcessDownload(luaPath, manifestsDir, outputPath, ddmodPath, dotnetPath);
+            return ProcessDownload(luaPath, manifestsDir, outputPath, ddmodPath, dotnetPath, maxDownloads: maxDownloads);
         }
 
         public static int TriggerDownloadProcess(string luaPath, string? manifestsDir, string? outputPath, string ddmodPath, string dotnetPath, List<DepotInfo>? selectedDepots)
@@ -130,7 +137,7 @@ namespace DepotDL.CLI
             return ProcessDownload(luaPath, manifestsDir, outputPath, ddmodPath, dotnetPath, selectedDepots);
         }
 
-        private static int ProcessDownload(string luaPath, string? manifestsDir, string? outputPath, string ddmodPath, string dotnetPath, List<DepotInfo>? selectedDepots = null)
+        private static int ProcessDownload(string luaPath, string? manifestsDir, string? outputPath, string ddmodPath, string dotnetPath, List<DepotInfo>? selectedDepots = null, int maxDownloads = DepotDownloadDefaults.MaxDownloads)
         {
             void LogError(string message) => WriteColored(message, ConsoleColor.Red);
 
@@ -253,7 +260,7 @@ namespace DepotDL.CLI
                         "-app", appId,
                         "-depot", depot.DepotId,
                         "-depotkeys", _tempKeysPath,
-                        "-max-downloads", "32",
+                        "-max-downloads", DepotDownloadDefaults.NormalizeMaxDownloads(maxDownloads).ToString(CultureInfo.InvariantCulture),
                         "-os", "windows",
                         "-validate",
                         "-dir", outputPath
@@ -552,6 +559,7 @@ namespace DepotDL.CLI
             Console.WriteLine("  -o, --output <dir>          Path to directory where files will be downloaded (Defaults to './downloads/App_<appid>').");
             Console.WriteLine("  -d, --ddmod <path>          Direct path to DepotDownloaderMod.dll (Auto-resolved if omitted).");
             Console.WriteLine("  -n, --dotnet <path>         Direct path to dotnet executable (Auto-resolved if omitted).");
+            Console.WriteLine($"      --max-downloads <n>     Parallel chunk downloads per depot. Default: {DepotDownloadDefaults.MaxDownloads}, max: 128.");
             Console.WriteLine("  -h, --help                  Show this usage help screen.");
             Console.WriteLine("\nNote: Launching DepotDL.CLI without arguments opens the interactive TUI dashboard mode.");
             Console.ForegroundColor = orig;
