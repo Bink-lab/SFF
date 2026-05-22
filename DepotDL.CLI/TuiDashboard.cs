@@ -24,11 +24,7 @@ namespace DepotDL.CLI
             IniSettings.LoadInto(session);
 
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
-            Console.WriteLine("║                 INITIALIZING LIBRARY AND SCANNING SYSTEMS                    ║");
-            Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
-            Console.ResetColor();
+            WriteCenteredStatusBox("DEPOTDL", new[] { "Initializing library and scanning systems" }, ConsoleColor.Cyan);
 
             int verified = LibraryManager.VerifyLibraryOnStartup(out int totalCount, out int missingCount);
             System.Threading.Thread.Sleep(800);
@@ -74,6 +70,8 @@ namespace DepotDL.CLI
                     ("Library Index:", libraryStats, missingCount > 0 ? ConsoleColor.Yellow : ConsoleColor.Green)
                 };
 
+                using (CenterConsoleOutput(82))
+                {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine("╔════════════════════════════════════════╦════════════════════════════════════════╗");
                 Console.Write("║ ");
@@ -166,6 +164,7 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.WriteLine("══════════════════════════════════════════════════════════════════════════════════");
                 Console.ResetColor();
+                }
 
                 var key = Console.ReadKey(true).Key;
                 if (key == ConsoleKey.UpArrow)
@@ -276,7 +275,12 @@ namespace DepotDL.CLI
             {
                 Console.Clear();
                 var games = LibraryManager.LoadLibrary();
+                int totalMenuItems = games.Count + 2;
+                if (selectedIndex >= totalMenuItems) selectedIndex = totalMenuItems - 1;
+                if (selectedIndex < 0) selectedIndex = 0;
 
+                using (CenterConsoleOutput(88))
+                {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine("╔════════════════════════════════════════╦════════════════╦═══════════════╦════════════╗");
                 Console.Write("║ ");
@@ -297,10 +301,6 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine(" ║");
                 Console.WriteLine("╠════════════════════════════════════════╬════════════════╬═══════════════╬════════════╣");
-
-                int totalMenuItems = games.Count + 2;
-                if (selectedIndex >= totalMenuItems) selectedIndex = totalMenuItems - 1;
-                if (selectedIndex < 0) selectedIndex = 0;
 
                 for (int i = 0; i < totalMenuItems; i++)
                 {
@@ -409,6 +409,7 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.WriteLine("════════════════════════════════════════════════════════════════════════════════════════");
                 Console.ResetColor();
+                }
 
                 var keyInfo = Console.ReadKey(true);
                 var key = keyInfo.Key;
@@ -456,6 +457,17 @@ namespace DepotDL.CLI
             while (true)
             {
                 Console.Clear();
+                var menuItems = new List<string>
+                {
+                    "1. Open Download Folder in File Explorer",
+                    "2. Verify Files (Scan Size)",
+                    "3. Load & Re-download/Update Game",
+                    "4. Uninstall & Delete Game Files",
+                    "5. Back"
+                };
+
+                using (CenterConsoleOutput(80))
+                {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
@@ -491,15 +503,6 @@ namespace DepotDL.CLI
                 Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
                 Console.ResetColor();
 
-                var menuItems = new List<string>
-                {
-                    "1. Open Download Folder in File Explorer",
-                    "2. Verify Files (Scan Size)",
-                    "3. Load & Re-download/Update Game",
-                    "4. Uninstall & Delete Game Files",
-                    "5. Back"
-                };
-
                 for (int i = 0; i < menuItems.Count; i++)
                 {
                     if (i == selectedIndex)
@@ -532,6 +535,7 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.WriteLine("══════════════════════════════════════════════════════════════════════════════════");
                 Console.ResetColor();
+                }
 
                 var key = Console.ReadKey(true).Key;
                 if (key == ConsoleKey.UpArrow)
@@ -624,6 +628,8 @@ namespace DepotDL.CLI
                     else if (selectedIndex == 3)
                     {
                         Console.Clear();
+                        using (CenterConsoleOutput(80))
+                        {
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                         Console.WriteLine("║                           CONFIRM UNINSTALLATION                             ║");
@@ -635,6 +641,7 @@ namespace DepotDL.CLI
                         Console.WriteLine("\nWARNING: THIS ACTION CANNOT BE UNDONE!");
                         Console.ResetColor();
                         Console.Write("\nAre you absolutely sure you want to uninstall and delete files? (y/N): ");
+                        }
                         
                         string? input = Console.ReadLine()?.Trim().ToLower();
                         if (input == "y" || input == "yes")
@@ -666,6 +673,17 @@ namespace DepotDL.CLI
             while (true)
             {
                 Console.Clear();
+                var menuItems = new List<string>
+                {
+                    "1. Batch Verify All Games (Rescans folder sizes)",
+                    "2. Batch Prune Missing Records (Clean inactive entries)",
+                    "3. Batch Uninstall Selected (Bulk delete from disk)",
+                    "4. Batch Download Queue (Sequential queue runner)",
+                    "5. Back"
+                };
+
+                using (CenterConsoleOutput(80))
+                {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
@@ -675,15 +693,6 @@ namespace DepotDL.CLI
                 Console.WriteLine(" ║");
                 Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
                 Console.ResetColor();
-
-                var menuItems = new List<string>
-                {
-                    "1. Batch Verify All Games (Rescans folder sizes)",
-                    "2. Batch Prune Missing Records (Clean inactive entries)",
-                    "3. Batch Uninstall Selected (Bulk delete from disk)",
-                    "4. Batch Download Queue (Sequential queue runner)",
-                    "5. Back"
-                };
 
                 for (int i = 0; i < menuItems.Count; i++)
                 {
@@ -709,6 +718,7 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.WriteLine("══════════════════════════════════════════════════════════════════════════════════");
                 Console.ResetColor();
+                }
 
                 var key = Console.ReadKey(true).Key;
                 if (key == ConsoleKey.UpArrow)
@@ -780,6 +790,8 @@ namespace DepotDL.CLI
             if (selected.Count == 0) return;
 
             Console.Clear();
+            using (CenterConsoleOutput(80))
+            {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
             Console.WriteLine("║                      CONFIRM BULK UNINSTALLATION                            ║");
@@ -794,6 +806,7 @@ namespace DepotDL.CLI
             Console.WriteLine("\nWARNING: THIS WILL RECURSIVELY DELETE ALL GAME DIRECTORIES LISTED!");
             Console.ResetColor();
             Console.Write("\nAre you absolutely sure you want to proceed? (y/N): ");
+            }
             string? input = Console.ReadLine()?.Trim().ToLower();
             if (input == "y" || input == "yes")
             {
@@ -836,6 +849,8 @@ namespace DepotDL.CLI
             if (selected.Count == 0) return;
 
             Console.Clear();
+            using (CenterConsoleOutput(80))
+            {
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
             Console.WriteLine("║                     SEQUENTIAL BATCH DOWNLOAD QUEUE                          ║");
@@ -847,6 +862,7 @@ namespace DepotDL.CLI
                 Console.WriteLine($"  {i + 1}. {selected[i].GameName} (App ID: {selected[i].AppId})");
             }
             Console.Write("\nPress Enter to begin the batch queue or Escape to cancel...");
+            }
             var k = Console.ReadKey(true).Key;
             if (k != ConsoleKey.Enter) return;
 
@@ -854,11 +870,14 @@ namespace DepotDL.CLI
             {
                 var game = selected[i];
                 Console.Clear();
+                using (CenterConsoleOutput(80))
+                {
                 Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.WriteLine($"║ {TuiText.Pad($"BATCH QUEUE: {i + 1} OF {selected.Count} - {game.GameName.ToUpper()}", 76)} ║");
                 Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
                 Console.ResetColor();
+                }
 
                 if (!File.Exists(game.LuaPath))
                 {
@@ -931,6 +950,8 @@ namespace DepotDL.CLI
             while (true)
             {
                 Console.Clear();
+                using (CenterConsoleOutput(80))
+                {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
@@ -977,6 +998,7 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.WriteLine("══════════════════════════════════════════════════════════════════════════════════");
                 Console.ResetColor();
+                }
 
                 var key = Console.ReadKey(true).Key;
                 if (key == ConsoleKey.UpArrow)
@@ -1021,15 +1043,6 @@ namespace DepotDL.CLI
             while (true)
             {
                 Console.Clear();
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
-                Console.Write("║ ");
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write(TuiText.Pad("MANIFEST CACHE MANAGER", 76));
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine(" ║");
-                Console.WriteLine("╠══════════════════════════════════════════════════════════════════════════════╣");
-
                 string currentDir = session.ManifestsDir ?? "manifests";
                 int manifestCount = 0;
                 int luaCount = 0;
@@ -1050,6 +1063,27 @@ namespace DepotDL.CLI
                     luaCount = luaFiles.Count;
                 }
                 catch { }
+
+                var menuItems = new List<string>
+                {
+                    "1. Configure/Select Manifests Cache Folder",
+                    "2. Import Individual Manifest Files (Windows Explorer)",
+                    "3. Import Configs & Manifests from ZIP File",
+                    "4. Scan & List Detailed Cached Manifests",
+                    "5. Clear Manifest Cache Folder (Perma-Delete)",
+                    "6. Back"
+                };
+
+                using (CenterConsoleOutput(80))
+                {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
+                Console.Write("║ ");
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.Write(TuiText.Pad("MANIFEST CACHE MANAGER", 76));
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine(" ║");
+                Console.WriteLine("╠══════════════════════════════════════════════════════════════════════════════╣");
 
                 void DrawCacheRow(string label, string val, ConsoleColor valColor)
                 {
@@ -1073,16 +1107,6 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
                 Console.ResetColor();
-
-                var menuItems = new List<string>
-                {
-                    "1. Configure/Select Manifests Cache Folder",
-                    "2. Import Individual Manifest Files (Windows Explorer)",
-                    "3. Import Configs & Manifests from ZIP File",
-                    "4. Scan & List Detailed Cached Manifests",
-                    "5. Clear Manifest Cache Folder (Perma-Delete)",
-                    "6. Back"
-                };
 
                 for (int i = 0; i < menuItems.Count; i++)
                 {
@@ -1108,6 +1132,7 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.WriteLine("══════════════════════════════════════════════════════════════════════════════════");
                 Console.ResetColor();
+                }
 
                 var key = Console.ReadKey(true).Key;
                 if (key == ConsoleKey.UpArrow)
@@ -1143,6 +1168,8 @@ namespace DepotDL.CLI
                     else if (selectedIndex == 4)
                     {
                         Console.Clear();
+                        using (CenterConsoleOutput(80))
+                        {
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                         Console.WriteLine("║                           CLEAR MANIFEST CACHE                               ║");
@@ -1153,6 +1180,7 @@ namespace DepotDL.CLI
                         Console.WriteLine("\nWARNING: THIS WILL PERMANENTLY DELETE ALL CACHED *.MANIFEST FILES IN THIS FOLDER!");
                         Console.ResetColor();
                         Console.Write("\nAre you sure you want to clear the manifest cache? (y/N): ");
+                        }
                         string? input = Console.ReadLine()?.Trim().ToLower();
                         if (input == "y" || input == "yes")
                         {
@@ -1201,6 +1229,8 @@ namespace DepotDL.CLI
                 return;
             }
 
+            using (CenterConsoleOutput(80))
+            {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
             Console.Write("║ ");
@@ -1243,6 +1273,7 @@ namespace DepotDL.CLI
             Console.WriteLine("══════════════════════════════════════════════════════════════════════════════════");
             Console.ResetColor();
             Console.WriteLine("\nPress any key to return to Manifest Cache Manager.");
+            }
             Console.ReadKey();
         }
 
@@ -1327,9 +1358,10 @@ namespace DepotDL.CLI
             SaveSession(session);
 
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"[Ryuu] Requesting ZIP package for App ID {appId.Trim()}...");
-            Console.ResetColor();
+            WriteCenteredStatusBox(
+                "RYUU API",
+                new[] { $"Requesting ZIP package for App ID {appId.Trim()}..." },
+                ConsoleColor.Cyan);
 
             try
             {
@@ -1340,9 +1372,7 @@ namespace DepotDL.CLI
                     return null;
                 }
 
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"[Ryuu] {result.Message}");
-                Console.ResetColor();
+                WriteCenteredStatusBox("RYUU API", new[] { result.Message }, ConsoleColor.Green);
                 return result.ZipPath;
             }
             catch (Exception ex)
@@ -1355,9 +1385,10 @@ namespace DepotDL.CLI
         private static void ImportZipIntoSession(TuiSession session, string zipPath)
         {
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"[Extract] Scanning and extracting archive: {zipPath}...");
-            Console.ResetColor();
+            WriteCenteredStatusBox(
+                "ZIP IMPORT",
+                new[] { $"Scanning and extracting archive: {TuiText.ShortenTail(zipPath, 58)}" },
+                ConsoleColor.Cyan);
             
             var result = ZipHelper.ImportZip(zipPath);
             if (!string.IsNullOrEmpty(result.ManifestsDir))
@@ -1366,25 +1397,28 @@ namespace DepotDL.CLI
                 session.ManifestsDirConfigured = false;
             }
             
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"\n[Extraction Complete]");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"  - Import Folder:                {result.ImportDir}");
-            Console.WriteLine($"  - Extracted Lua Configurations: {result.LuaCount}");
-            Console.WriteLine($"  - Extracted Steam Manifests:    {result.ManifestCount}");
-            Console.ResetColor();
+            WriteCenteredStatusBox(
+                "EXTRACTION COMPLETE",
+                new[]
+                {
+                    $"Import Folder: {TuiText.ShortenTail(result.ImportDir, 56)}",
+                    $"Extracted Lua Configurations: {result.LuaCount}",
+                    $"Extracted Steam Manifests: {result.ManifestCount}"
+                },
+                ConsoleColor.Green);
             
             if (!string.IsNullOrEmpty(result.FirstLuaPath))
             {
                 session.LuaPath = result.FirstLuaPath;
                 ParseLuaFileIntoSession(session);
                 SaveSession(session);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"\n[Auto-Load] Auto-loaded game configuration: {Path.GetFileName(result.FirstLuaPath)}");
-                Console.ResetColor();
+                WriteCenteredStatusBox(
+                    "AUTO-LOAD",
+                    new[] { $"Loaded game configuration: {Path.GetFileName(result.FirstLuaPath)}" },
+                    ConsoleColor.Green);
             }
             
-            Console.WriteLine("\nPress any key to return.");
+            WriteCenteredText("Press any key to return.", ConsoleColor.Cyan);
             Console.ReadKey();
         }
 
@@ -1623,46 +1657,189 @@ namespace DepotDL.CLI
             IniSettings.Save(session);
         }
 
+        private static IDisposable CenterConsoleOutput(int contentWidth)
+        {
+            var writer = Console.Out;
+            Console.SetOut(new CenteredTextWriter(writer, GetLeftPad(contentWidth)));
+            return new ConsoleOutputScope(writer);
+        }
+
+        private sealed class ConsoleOutputScope : IDisposable
+        {
+            private readonly TextWriter _previousWriter;
+
+            public ConsoleOutputScope(TextWriter previousWriter)
+            {
+                _previousWriter = previousWriter;
+            }
+
+            public void Dispose()
+            {
+                Console.SetOut(_previousWriter);
+            }
+        }
+
+        private sealed class CenteredTextWriter : TextWriter
+        {
+            private readonly TextWriter _inner;
+            private readonly string _indent;
+            private bool _atLineStart = true;
+
+            public CenteredTextWriter(TextWriter inner, int indent)
+            {
+                _inner = inner;
+                _indent = new string(' ', Math.Max(0, indent));
+            }
+
+            public override Encoding Encoding => _inner.Encoding;
+
+            public override void Write(char value)
+            {
+                if (_atLineStart && value != '\n' && value != '\r')
+                {
+                    _inner.Write(_indent);
+                    _atLineStart = false;
+                }
+
+                _inner.Write(value);
+                if (value == '\n')
+                {
+                    _atLineStart = true;
+                }
+            }
+
+            public override void Write(string? value)
+            {
+                if (value == null)
+                {
+                    return;
+                }
+
+                foreach (char ch in value)
+                {
+                    Write(ch);
+                }
+            }
+        }
+
+        private static int GetConsoleWidth()
+        {
+            try
+            {
+                return Math.Max(Console.WindowWidth, 80);
+            }
+            catch
+            {
+                return 80;
+            }
+        }
+
+        private static int GetLeftPad(int width)
+        {
+            return Math.Max(0, (GetConsoleWidth() - width) / 2);
+        }
+
+        private static void WriteCenteredLine(string text, ConsoleColor color)
+        {
+            Console.ForegroundColor = color;
+            Console.Write(new string(' ', GetLeftPad(text.Length)));
+            Console.WriteLine(text);
+            Console.ResetColor();
+        }
+
+        private static void WriteCenteredText(string text, ConsoleColor color)
+        {
+            Console.WriteLine();
+            WriteCenteredLine(text, color);
+        }
+
+        private static void WriteCenteredHeader(string title, int width)
+        {
+            WriteCenteredBox(title, Array.Empty<string>(), ConsoleColor.White, width, false);
+        }
+
+        private static void WriteCenteredStatusBox(string title, IEnumerable<string> rows, ConsoleColor rowColor)
+        {
+            var lines = rows.Select(row => TuiText.ShortenTail(row, 64)).ToList();
+            int width = Math.Min(72, Math.Max(34, lines.Append(title).Max(line => line.Length) + 6));
+            WriteCenteredBox(title, lines, rowColor, width, true);
+        }
+
+        private static void WriteCenteredBox(string title, IReadOnlyList<string> rows, ConsoleColor rowColor, int width, bool separator)
+        {
+            int leftPad = GetLeftPad(width);
+            string horizontalBorder = new string('═', width - 2);
+            string titleLine = title.Length > width - 6 ? title.Substring(0, width - 6) : title;
+            int titlePadLeft = (width - 2 - titleLine.Length) / 2;
+            int titlePadRight = width - 2 - titleLine.Length - titlePadLeft;
+
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write(new string(' ', leftPad));
+            Console.WriteLine("╔" + horizontalBorder + "╗");
+            Console.Write(new string(' ', leftPad));
+            Console.Write("║");
+            Console.Write(new string(' ', titlePadLeft));
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write(titleLine);
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write(new string(' ', titlePadRight));
+            Console.WriteLine("║");
+            Console.Write(new string(' ', leftPad));
+            Console.WriteLine((separator && rows.Count > 0 ? "╠" : "╚") + horizontalBorder + (separator && rows.Count > 0 ? "╣" : "╝"));
+
+            foreach (var line in rows)
+            {
+                Console.Write(new string(' ', leftPad));
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write("║ ");
+                Console.ForegroundColor = rowColor;
+                Console.Write(TuiText.Pad(line, width - 4));
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine(" ║");
+            }
+
+            if (rows.Count > 0)
+            {
+                Console.Write(new string(' ', leftPad));
+                Console.WriteLine("╚" + horizontalBorder + "╝");
+            }
+            Console.ResetColor();
+        }
+
         private static int RunSelector(string prompt, List<string> options)
         {
             int index = 0;
             while (true)
             {
                 Console.Clear();
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
-                Console.Write("║ ");
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write(TuiText.Pad(prompt.ToUpper(), 76));
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine(" ║");
-                Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
-                Console.ResetColor();
+                int selectorWidth = Math.Min(78, Math.Max(42, options.Append(prompt).Max(option => option.Length) + 8));
+                int leftPad = GetLeftPad(selectorWidth);
+                WriteCenteredHeader(prompt.ToUpper(), selectorWidth);
+                Console.WriteLine();
 
                 for (int i = 0; i < options.Count; i++)
                 {
+                    Console.Write(new string(' ', leftPad));
                     if (i == index)
                     {
                         Console.BackgroundColor = ConsoleColor.Cyan;
                         Console.ForegroundColor = ConsoleColor.Black;
-                        Console.WriteLine($">  {options[i]}");
+                        Console.Write(TuiText.Pad($">  {options[i]}", selectorWidth));
+                        Console.WriteLine();
                         Console.ResetColor();
                     }
                     else
                     {
                         Console.ForegroundColor = ConsoleColor.White;
-                        Console.WriteLine($"   {options[i]}");
+                        Console.WriteLine(TuiText.Pad($"   {options[i]}", selectorWidth));
                         Console.ResetColor();
                     }
                 }
 
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine("\n══════════════════════════════════════════════════════════════════════════════════");
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine("  [↑/↓] Navigate   [Enter] Select Option   [Esc] Cancel / Back");
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine("══════════════════════════════════════════════════════════════════════════════════");
-                Console.ResetColor();
+                Console.WriteLine();
+                WriteCenteredLine("══════════════════════════════════════════════════════════════════════════════════", ConsoleColor.DarkCyan);
+                WriteCenteredLine("[↑/↓] Navigate   [Enter] Select Option   [Esc] Cancel / Back", ConsoleColor.Cyan);
+                WriteCenteredLine("══════════════════════════════════════════════════════════════════════════════════", ConsoleColor.DarkCyan);
 
                 var key = Console.ReadKey(true).Key;
                 if (key == ConsoleKey.UpArrow)
@@ -1696,6 +1873,8 @@ namespace DepotDL.CLI
             while (true)
             {
                 Console.Clear();
+                using (CenterConsoleOutput(80))
+                {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
                 Console.Write("║ ");
@@ -1742,6 +1921,7 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.WriteLine("══════════════════════════════════════════════════════════════════════════════════");
                 Console.ResetColor();
+                }
 
                 var key = Console.ReadKey(true).Key;
                 if (key == ConsoleKey.UpArrow)
