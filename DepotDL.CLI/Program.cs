@@ -1,18 +1,34 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace DepotDL.CLI
 {
+    public class DepotSlotState
+    {
+        public string? DepotId { get; set; }
+        public string Status { get; set; } = "Idle";
+        public double? Percent { get; set; }
+        public string? ActiveValidationFile { get; set; }
+    }
+
     public class Program
     {
         private static string? _tempKeysPath;
-        private static int _lastLineLength;
-        private static string? _activeValidationFile;
-        private static double _lastPercentage;
+
+        private static readonly DepotSlotState[] _slots = new DepotSlotState[]
+        {
+            new DepotSlotState(),
+            new DepotSlotState()
+        };
+        private static readonly object _drawLock = new object();
+        private static readonly Queue<Action> _pendingLogs = new Queue<Action>();
+        private static bool _isTty = false;
 
         static int Main(string[] args)
         {
@@ -215,7 +231,7 @@ namespace DepotDL.CLI
                             manifestFiles[name] = file;
                         }
                     }
-                    manifestScanStatus = $"{files.Length} local manifests in {manifestsDir}";
+                    manifestScanStatus = $"{files.Length} local manifests in {TuiText.ShortenTail(manifestsDir, 45)}";
                 }
 
                 var tempKeysContent = new List<string>();
@@ -244,119 +260,228 @@ namespace DepotDL.CLI
                 }
                 DownloadTui.WriteSetup("Keys File", Path.GetFileName(_tempKeysPath), ConsoleColor.DarkGray);
 
-                int successfulDepots = 0;
-                int totalDepots = depots.Count;
-                bool hadErrors = false;
-
-                foreach (var depot in depots.Values)
+                _isTty = !Console.IsOutputRedirected;
+                if (_isTty)
                 {
-                    _lastLineLength = 0;
-                    _lastPercentage = 0;
-                    _activeValidationFile = null;
-                    DownloadTui.WriteDepotHeader(depot.DepotId, ++successfulDepots, totalDepots, depot.ManifestId);
+                    Console.WriteLine();
+                    Console.WriteLine();
+                }
 
-                    var argsList = new List<string>
+                var depotQueue = new ConcurrentQueue<DepotInfo>(depots.Values);
+                int totalDepots = depots.Count;
+                int successfulDepots = 0;
+                bool hadErrors = false;
+                var allOkLock = new object();
+
+                var workerTasks = new List<Task>();
+                int numWorkers = Math.Min(2, totalDepots);
+
+                for (int i = 0; i < numWorkers; i++)
+                {
+                    int slotId = i;
+                    workerTasks.Add(Task.Run(() =>
                     {
-                        ddmodPath,
-                        "-app", appId,
-                        "-depot", depot.DepotId,
-                        "-depotkeys", _tempKeysPath,
-                        "-max-downloads", DepotDownloadDefaults.NormalizeMaxDownloads(maxDownloads).ToString(CultureInfo.InvariantCulture),
-                        "-os", "windows",
-                        "-validate",
-                        "-dir", outputPath
-                    };
-
-                    if (!string.IsNullOrEmpty(depot.ManifestId))
-                    {
-                        argsList.Add("-manifest");
-                        argsList.Add(depot.ManifestId);
-
-                        var keyCombo = $"{depot.DepotId}_{depot.ManifestId}";
-                        if (manifestFiles.TryGetValue(keyCombo, out var manifestPath))
+                        while (depotQueue.TryDequeue(out var depot))
                         {
-                            argsList.Add("-manifestfile");
-                            argsList.Add(manifestPath);
-                            DownloadTui.WriteStatus("Manifest", $"Using local file {Path.GetFileName(manifestPath)}", ConsoleColor.Green);
-                        }
-                        else if (manifestFiles.TryGetValue(depot.ManifestId, out var manifestPathById))
-                        {
-                            argsList.Add("-manifestfile");
-                            argsList.Add(manifestPathById);
-                            DownloadTui.WriteStatus("Manifest", $"Using local file {Path.GetFileName(manifestPathById)}", ConsoleColor.Green);
-                        }
-                        else
-                        {
-                            DownloadTui.WriteStatus("Manifest", "No local match; DepotDownloaderMod will fetch it", ConsoleColor.Yellow);
-                        }
-                    }
-
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = dotnetPath,
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true,
-                        WorkingDirectory = Path.GetDirectoryName(ddmodPath) ?? AppDomain.CurrentDomain.BaseDirectory
-                    };
-                    foreach (var arg in argsList)
-                    {
-                        psi.ArgumentList.Add(arg);
-                    }
-
-                    var depotOutputErrors = new List<string>();
-                    string? lastOutputLine = null;
-
-                    using (var process = new Process { StartInfo = psi })
-                    {
-                        process.OutputDataReceived += (sender, lineEventArgs) =>
-                        {
-                            if (!string.IsNullOrWhiteSpace(lineEventArgs.Data))
+                            lock (_drawLock)
                             {
-                                lastOutputLine = lineEventArgs.Data;
+                                _slots[slotId].DepotId = depot.DepotId;
+                                _slots[slotId].Status = "Initializing...";
+                                _slots[slotId].Percent = null;
+                                _slots[slotId].ActiveValidationFile = null;
                             }
-                            if (IsDepotDownloadFailure(lineEventArgs.Data))
+                            DrawSlots();
+
+                            bool depotOk = false;
+
+                            var argsList = new List<string>
                             {
-                                depotOutputErrors.Add(lineEventArgs.Data!);
-                            }
-                            ProcessProgressLine(lineEventArgs.Data);
-                        };
-                        process.ErrorDataReceived += (sender, lineEventArgs) =>
-                        {
-                            if (!string.IsNullOrEmpty(lineEventArgs.Data))
+                                ddmodPath,
+                                "-app", appId,
+                                "-depot", depot.DepotId,
+                                "-depotkeys", _tempKeysPath,
+                                "-max-downloads", DepotDownloadDefaults.NormalizeMaxDownloads(maxDownloads).ToString(CultureInfo.InvariantCulture),
+                                "-os", "windows",
+                                "-validate",
+                                "-dir", outputPath
+                            };
+
+                            if (!string.IsNullOrEmpty(depot.ManifestId))
                             {
-                                lastOutputLine = lineEventArgs.Data;
-                                if (IsDepotDownloadFailure(lineEventArgs.Data))
+                                argsList.Add("-manifest");
+                                argsList.Add(depot.ManifestId);
+
+                                var keyCombo = $"{depot.DepotId}_{depot.ManifestId}";
+                                if (manifestFiles.TryGetValue(keyCombo, out var manifestPath))
                                 {
-                                    depotOutputErrors.Add(lineEventArgs.Data);
+                                    argsList.Add("-manifestfile");
+                                    argsList.Add(manifestPath);
+                                    lock (_drawLock)
+                                    {
+                                        _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Manifest", $"Using local file {Path.GetFileName(manifestPath)}", ConsoleColor.Green));
+                                    }
                                 }
-                                ClearCurrentConsoleLine();
-                                LogError(lineEventArgs.Data);
+                                else if (manifestFiles.TryGetValue(depot.ManifestId, out var manifestPathById))
+                                {
+                                    argsList.Add("-manifestfile");
+                                    argsList.Add(manifestPathById);
+                                    lock (_drawLock)
+                                    {
+                                        _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Manifest", $"Using local file {Path.GetFileName(manifestPathById)}", ConsoleColor.Green));
+                                    }
+                                }
+                                else
+                                {
+                                    lock (_drawLock)
+                                    {
+                                        _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Manifest", "No local match; DepotDownloaderMod will fetch it", ConsoleColor.Yellow));
+                                    }
+                                }
                             }
-                        };
 
-                        process.Start();
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-                        process.WaitForExit();
+                            var psi = new ProcessStartInfo
+                            {
+                                FileName = dotnetPath,
+                                UseShellExecute = false,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                CreateNoWindow = true,
+                                WorkingDirectory = Path.GetDirectoryName(ddmodPath) ?? AppDomain.CurrentDomain.BaseDirectory
+                            };
+                            foreach (var arg in argsList)
+                            {
+                                psi.ArgumentList.Add(arg);
+                            }
 
-                        ClearCurrentConsoleLine();
+                            var depotOutputErrors = new List<string>();
+                            string? lastOutputLine = null;
 
-                        if (process.ExitCode != 0 || depotOutputErrors.Count > 0)
-                        {
-                            hadErrors = true;
-                            var reason = depotOutputErrors.Count > 0
-                                ? depotOutputErrors[depotOutputErrors.Count - 1]
-                                : !string.IsNullOrWhiteSpace(lastOutputLine)
-                                    ? $"{lastOutputLine} (exit code {process.ExitCode})"
-                                : $"DepotDownloaderMod exited with code {process.ExitCode}";
-                            DownloadTui.WriteStatus("Failed", reason, ConsoleColor.Red);
+                            using (var process = new Process { StartInfo = psi })
+                            {
+                                process.OutputDataReceived += (sender, lineEventArgs) =>
+                                {
+                                    if (!string.IsNullOrWhiteSpace(lineEventArgs.Data))
+                                    {
+                                        lastOutputLine = lineEventArgs.Data;
+                                    }
+                                    if (IsDepotDownloadFailure(lineEventArgs.Data))
+                                    {
+                                        lock (depotOutputErrors)
+                                        {
+                                            depotOutputErrors.Add(lineEventArgs.Data!);
+                                        }
+                                    }
+                                    ProcessProgressLine(slotId, lineEventArgs.Data);
+                                };
+                                process.ErrorDataReceived += (sender, lineEventArgs) =>
+                                {
+                                    if (!string.IsNullOrEmpty(lineEventArgs.Data))
+                                    {
+                                        lastOutputLine = lineEventArgs.Data;
+                                        if (IsDepotDownloadFailure(lineEventArgs.Data))
+                                        {
+                                            lock (depotOutputErrors)
+                                            {
+                                                depotOutputErrors.Add(lineEventArgs.Data);
+                                            }
+                                        }
+                                    }
+                                };
+
+                                process.Start();
+                                process.BeginOutputReadLine();
+                                process.BeginErrorReadLine();
+                                process.WaitForExit();
+
+                                if (process.ExitCode != 0 || depotOutputErrors.Count > 0)
+                                {
+                                    depotOk = false;
+                                    string reason;
+                                    if (depotOutputErrors.Count > 0)
+                                    {
+                                        reason = depotOutputErrors[depotOutputErrors.Count - 1];
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(lastOutputLine))
+                                    {
+                                        // Take just the first line / short summary
+                                        var msgPart = lastOutputLine;
+                                        int nlIdx = msgPart.IndexOf('\n');
+                                        if (nlIdx > 0) msgPart = msgPart.Substring(0, nlIdx);
+                                        reason = TuiText.Shorten($"{msgPart} (exit code {process.ExitCode})", 60);
+                                    }
+                                    else
+                                    {
+                                        reason = $"DepotDownloaderMod exited with code {process.ExitCode}";
+                                    }
+                                    string depotId = depot.DepotId;
+                                    lock (_drawLock)
+                                    {
+                                        _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Failed", $"Depot {depotId}: {reason}", ConsoleColor.Red));
+                                    }
+                                }
+                                else
+                                {
+                                    depotOk = true;
+                                    string depotId = depot.DepotId;
+                                    lock (_drawLock)
+                                    {
+                                        _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Complete", $"Depot {depotId} downloaded successfully", ConsoleColor.Green));
+                                    }
+                                }
+                            }
+
+                            lock (allOkLock)
+                            {
+                                if (depotOk)
+                                {
+                                    successfulDepots++;
+                                }
+                                else
+                                {
+                                    hadErrors = true;
+                                }
+                            }
+
+                            lock (_drawLock)
+                            {
+                                _slots[slotId].DepotId = null;
+                                _slots[slotId].Status = "Idle";
+                                _slots[slotId].Percent = null;
+                                _slots[slotId].ActiveValidationFile = null;
+                            }
+                            DrawSlots();
                         }
-                        else
+                    }));
+                }
+
+                Task.WaitAll(workerTasks.ToArray());
+
+                // Flush any remaining pending logs and clear the slot lines
+                lock (_drawLock)
+                {
+                    if (_isTty)
+                    {
+                        try
                         {
-                            DownloadTui.WriteStatus("Complete", $"Depot {depot.DepotId} completed successfully", ConsoleColor.Green);
+                            int startTop = Math.Max(0, Console.CursorTop - 2);
+                            Console.SetCursorPosition(0, startTop);
+                            while (_pendingLogs.Count > 0)
+                            {
+                                ClearCurrentLine();
+                                _pendingLogs.Dequeue()();
+                            }
+                            ClearCurrentLine();
+                            Console.WriteLine();
+                            ClearCurrentLine();
                         }
+                        catch
+                        {
+                            while (_pendingLogs.Count > 0) _pendingLogs.Dequeue()();
+                        }
+                    }
+                    else
+                    {
+                        while (_pendingLogs.Count > 0) _pendingLogs.Dequeue()();
                     }
                 }
 
@@ -444,12 +569,13 @@ namespace DepotDL.CLI
             Console.ForegroundColor = orig;
         }
 
-        private static void ProcessProgressLine(string? line)
+        private static void ProcessProgressLine(int slotId, string? line)
         {
             if (string.IsNullOrWhiteSpace(line)) return;
 
             try
             {
+                // Suppress noisy status messages from DepotDownloaderMod
                 if (line.StartsWith("Using depot keys from", StringComparison.OrdinalIgnoreCase) ||
                     line.StartsWith("No username given", StringComparison.OrdinalIgnoreCase) ||
                     line.StartsWith("Connecting to Steam3", StringComparison.OrdinalIgnoreCase) ||
@@ -463,15 +589,41 @@ namespace DepotDL.CLI
                     line.StartsWith("Manifest ", StringComparison.OrdinalIgnoreCase) ||
                     line.StartsWith("Downloading depot", StringComparison.OrdinalIgnoreCase) ||
                     line.StartsWith("Total downloaded:", StringComparison.OrdinalIgnoreCase) ||
+                    line.StartsWith("Pre-allocating", StringComparison.OrdinalIgnoreCase) ||
                     Regex.IsMatch(line, @"^Depot \d+ - Downloaded"))
                 {
+                    // Update slot status for connecting/pre-allocating states
+                    if (line.StartsWith("Connecting to Steam3", StringComparison.OrdinalIgnoreCase) ||
+                        line.StartsWith("Logging anonymously", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lock (_drawLock)
+                        {
+                            _slots[slotId].Status = "Connecting...";
+                            _slots[slotId].Percent = null;
+                        }
+                        DrawSlots();
+                    }
+                    else if (line.StartsWith("Pre-allocating", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lock (_drawLock)
+                        {
+                            _slots[slotId].Status = "Pre-allocating...";
+                            _slots[slotId].Percent = null;
+                        }
+                        DrawSlots();
+                    }
                     return;
                 }
 
                 if (line.StartsWith("Validating ", StringComparison.OrdinalIgnoreCase))
                 {
-                    _activeValidationFile = Path.GetFileName(line.Substring(11).Trim());
-                    DrawProgressBar(_lastPercentage);
+                    lock (_drawLock)
+                    {
+                        _slots[slotId].ActiveValidationFile = Path.GetFileName(line.Substring(11).Trim());
+                        _slots[slotId].Status = "Validating";
+                        _slots[slotId].Percent = null;
+                    }
+                    DrawSlots();
                     return;
                 }
 
@@ -481,45 +633,167 @@ namespace DepotDL.CLI
                     string pctStr = pctMatch.Groups[1].Value.Replace(',', '.');
                     if (double.TryParse(pctStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double percentage))
                     {
-                        _lastPercentage = percentage;
-                        DrawProgressBar(percentage);
+                        lock (_drawLock)
+                        {
+                            _slots[slotId].Percent = percentage;
+                            _slots[slotId].Status = "Downloading";
+                        }
+                        DrawSlots();
+                    }
+                }
+                // All other stdout lines are silently ignored — errors come through stderr
+                // and are collected in depotOutputErrors for the final summary.
+            }
+            catch
+            {
+            }
+        }
+
+        private static void ClearCurrentLine()
+        {
+            try
+            {
+                int width = Console.WindowWidth - 1;
+                if (width > 0)
+                {
+                    Console.Write(new string(' ', width) + "\r");
+                }
+            }
+            catch {}
+        }
+
+        private static void DrawSlotLine(int slotId)
+        {
+            // Matches the DownloadTui.WriteStatus layout:
+            //   pad + "  │ " + Pad(label, 12) + " │ " + message
+            var slot = _slots[slotId];
+            string pad = new string(' ', DownloadTui.LeftPad);
+
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write(pad + "  │ ");
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.Write(TuiText.Pad($"Slot {slotId + 1}", 12));
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write(" │ ");
+
+            if (slot.DepotId == null)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write("Waiting...");
+                Console.ResetColor();
+                return;
+            }
+
+            // Build the status message portion to match WriteStatus value style
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write(TuiText.Pad(slot.DepotId, 8));
+
+            if (slot.Percent != null)
+            {
+                double pct = slot.Percent.Value;
+                int barWidth = 30;
+                int filled = (int)Math.Round(pct / 100.0 * barWidth);
+                if (filled < 0) filled = 0;
+                if (filled > barWidth) filled = barWidth;
+
+                string filledBar = new string('\u2588', filled);
+                string emptyBar = new string('\u2591', barWidth - filled);
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write($"{pct,5:F1}%");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write(" [");
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.Write(filledBar);
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write(emptyBar);
+                Console.Write("] ");
+
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Console.Write(slot.Status);
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Console.Write(slot.Status);
+            }
+
+            if (!string.IsNullOrEmpty(slot.ActiveValidationFile))
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write($"  {TuiText.Shorten(slot.ActiveValidationFile, 20)}");
+            }
+
+            Console.ResetColor();
+        }
+
+        /// <summary>
+        /// Clears the 2 slot lines at the bottom (used before printing final results).
+        /// Must be called while holding _drawLock or when workers have finished.
+        /// </summary>
+        private static void ClearSlotLines()
+        {
+            if (!_isTty) return;
+            try
+            {
+                int startTop = Math.Max(0, Console.CursorTop - 2);
+                Console.SetCursorPosition(0, startTop);
+                ClearCurrentLine();
+                Console.WriteLine();
+                ClearCurrentLine();
+                Console.WriteLine();
+                Console.SetCursorPosition(0, startTop);
+            }
+            catch { }
+        }
+
+        private static void DrawSlots()
+        {
+            lock (_drawLock)
+            {
+                if (_isTty)
+                {
+                    try
+                    {
+                        // Move cursor up to where slot lines start (2 lines above current position)
+                        int startTop = Math.Max(0, Console.CursorTop - 2);
+                        Console.SetCursorPosition(0, startTop);
+
+                        // Flush any pending permanent log lines (completion/failure messages)
+                        while (_pendingLogs.Count > 0)
+                        {
+                            Action logAction = _pendingLogs.Dequeue();
+                            ClearCurrentLine();
+                            logAction();
+                        }
+
+                        // Redraw the two slot lines
+                        ClearCurrentLine();
+                        DrawSlotLine(0);
+                        Console.WriteLine();
+
+                        ClearCurrentLine();
+                        DrawSlotLine(1);
+                        Console.WriteLine();
+                    }
+                    catch
+                    {
+                        // Fallback: just flush pending logs without cursor control
+                        while (_pendingLogs.Count > 0)
+                        {
+                            _pendingLogs.Dequeue()();
+                        }
                     }
                 }
                 else
                 {
-                    ClearCurrentConsoleLine();
-                    
-                    if (line.StartsWith("Pre-allocating")) return;
-
-                    Console.WriteLine(line);
+                    // Non-TTY: just flush logs sequentially
+                    while (_pendingLogs.Count > 0)
+                    {
+                        _pendingLogs.Dequeue()();
+                    }
                 }
             }
-            catch
-            {
-                try
-                {
-                    ClearCurrentConsoleLine();
-                    Console.WriteLine(line);
-                }
-                catch { }
-            }
-        }
-
-        private static void DrawProgressBar(double percentage)
-        {
-            try
-            {
-                DownloadTui.DrawProgress(percentage, _activeValidationFile, ref _lastLineLength);
-            }
-            catch
-            {
-                Console.Write($"\r  │ Progress     │ {percentage:F1}%");
-            }
-        }
-
-        private static void ClearCurrentConsoleLine()
-        {
-            DownloadTui.ClearProgress(ref _lastLineLength);
         }
 
         private static void SafeCleanupDepotDownloaderFolder(string? outputPath, string ddmodPath)
