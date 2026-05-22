@@ -203,7 +203,8 @@ def _run_multiplayer_fix_process(game_name, game_folder, username, password, aty
         driver = webdriver.Chrome(options=opts); wait = WebDriverWait(driver, 15)
         print(Fore.GREEN + "✓ Secure engine ready" + Style.RESET_ALL)
         # Searching with explicit Story query
-        driver.get(f"https://online-fix.me/index.php?do=search&subaction=search&story={quote(re.sub(r'[^\w\s]', '', game_name))}")
+        clean_game_name = re.sub(r'[^\w\s]', '', game_name)
+        driver.get(f"https://online-fix.me/index.php?do=search&subaction=search&story={quote(clean_game_name)}")
         # QUALITY GATE: Restrict search to dle-content to avoid "thank you" links in footers/sidebars
         try: wait.until(EC.presence_of_element_located((By.ID, "dle-content")))
         except Exception: pass

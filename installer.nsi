@@ -4,7 +4,7 @@
 !define APPNAME    "SteaMidra"
 !define COMPANY    "bink-lab"
 !ifndef VERSION
-  !define VERSION  "6.2"
+  !define VERSION  "6.2.1"
 !endif
 !define EXENAME    "SteaMidra_GUI.exe"
 !define PUBLISHER  "bink-lab"

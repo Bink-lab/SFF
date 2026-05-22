@@ -211,9 +211,11 @@ def main():
     window.show()
 
     from sff.tray_icon import TrayIcon
-    tray = TrayIcon()
+    tray = TrayIcon(parent=window)
     tray.setup(_app_icon if not _app_icon.isNull() else app.windowIcon())
     window.set_tray(tray)
+    # Keep a reference on app to prevent garbage collection
+    app._tray = tray
 
     from sff.gui.floating_icon import FloatingIcon
     _floating_icon_path = "SFF.png" if os.path.exists("SFF.png") else (os.path.join(getattr(sys, "_MEIPASS", ""), "SFF.png") if getattr(sys, "frozen", False) else None)
