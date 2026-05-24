@@ -25,6 +25,11 @@ namespace DepotDL.CLI
             session.DownloadBaseDir = Get(values, "paths.download_base_dir") ?? session.DownloadBaseDir;
             session.DownloadBaseDir = Get(values, "session.download_base_dir") ?? session.DownloadBaseDir;
             session.RyuuApiKey = Get(values, "ryuu.api_key") ?? session.RyuuApiKey;
+
+            if (int.TryParse(Get(values, "settings.max_parallel_depots"), out var maxParallel))
+            {
+                session.MaxParallelDepots = Math.Clamp(maxParallel, 1, 8);
+            }
         }
 
         public static void Save(TuiSession session)
@@ -37,6 +42,9 @@ namespace DepotDL.CLI
             writer.WriteLine();
             writer.WriteLine("[ryuu]");
             WriteValue(writer, "api_key", session.RyuuApiKey);
+            writer.WriteLine();
+            writer.WriteLine("[settings]");
+            WriteValue(writer, "max_parallel_depots", session.MaxParallelDepots.ToString());
         }
 
         private static Dictionary<string, string> Load()
