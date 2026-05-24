@@ -21,17 +21,13 @@ namespace DepotDL.CLI
     {
         private static string? _tempKeysPath;
 
-        private static readonly DepotSlotState[] _slots = new DepotSlotState[]
-        {
-            new DepotSlotState(),
-            new DepotSlotState()
-        };
+        private static DepotSlotState[] _slots = Array.Empty<DepotSlotState>();
         private static readonly object _drawLock = new object();
         private static readonly Queue<Action> _pendingLogs = new Queue<Action>();
         private static bool _isTty = false;
         private static DateTime _lastDrawTime = DateTime.MinValue;
         private static readonly TimeSpan _drawThrottleInterval = TimeSpan.FromMilliseconds(100);
-        private static readonly int[] _lastSlotLengths = new int[2];
+        private static int[] _lastSlotLengths = Array.Empty<int>();
 
         static int Main(string[] args)
         {
@@ -80,6 +76,7 @@ namespace DepotDL.CLI
             string? ddmodPath = null;
             string? dotnetPath = null;
             int maxDownloads = DepotDownloadDefaults.MaxDownloads;
+            int maxParallelDepots = 2;
             bool showHelp = false;
 
             for (int i = 0; i < args.Length; i++)
@@ -110,6 +107,13 @@ namespace DepotDL.CLI
                         if (i + 1 < args.Length && int.TryParse(args[++i], out var parsedMaxDownloads))
                         {
                             maxDownloads = DepotDownloadDefaults.NormalizeMaxDownloads(parsedMaxDownloads);
+                        }
+                        break;
+                    case "--max-parallel-depots":
+                    case "-p":
+                        if (i + 1 < args.Length && int.TryParse(args[++i], out var parsedMaxParallel))
+                        {
+                            maxParallelDepots = Math.Clamp(parsedMaxParallel, 1, 8);
                         }
                         break;
                     case "--help":
@@ -148,15 +152,15 @@ namespace DepotDL.CLI
                 return 1;
             }
 
-            return ProcessDownload(luaPath, manifestsDir, outputPath, ddmodPath, dotnetPath, maxDownloads: maxDownloads);
+            return ProcessDownload(luaPath, manifestsDir, outputPath, ddmodPath, dotnetPath, maxDownloads: maxDownloads, maxParallelDepots: maxParallelDepots);
         }
 
-        public static int TriggerDownloadProcess(string luaPath, string? manifestsDir, string? outputPath, string ddmodPath, string dotnetPath, List<DepotInfo>? selectedDepots)
+        public static int TriggerDownloadProcess(string luaPath, string? manifestsDir, string? outputPath, string ddmodPath, string dotnetPath, List<DepotInfo>? selectedDepots, int maxParallelDepots = 2)
         {
-            return ProcessDownload(luaPath, manifestsDir, outputPath, ddmodPath, dotnetPath, selectedDepots);
+            return ProcessDownload(luaPath, manifestsDir, outputPath, ddmodPath, dotnetPath, selectedDepots, maxParallelDepots: maxParallelDepots);
         }
 
-        private static int ProcessDownload(string luaPath, string? manifestsDir, string? outputPath, string ddmodPath, string dotnetPath, List<DepotInfo>? selectedDepots = null, int maxDownloads = DepotDownloadDefaults.MaxDownloads)
+        private static int ProcessDownload(string luaPath, string? manifestsDir, string? outputPath, string ddmodPath, string dotnetPath, List<DepotInfo>? selectedDepots = null, int maxDownloads = DepotDownloadDefaults.MaxDownloads, int maxParallelDepots = 2)
         {
             void LogError(string message) => WriteColored(message, ConsoleColor.Red);
 
@@ -264,20 +268,34 @@ namespace DepotDL.CLI
                 DownloadTui.WriteSetup("Keys File", Path.GetFileName(_tempKeysPath), ConsoleColor.DarkGray);
 
                 _isTty = !Console.IsOutputRedirected;
-                if (_isTty)
-                {
-                    Console.WriteLine();
-                    Console.WriteLine();
-                }
-
+                
                 var depotQueue = new ConcurrentQueue<DepotInfo>(depots.Values);
                 int totalDepots = depots.Count;
                 int successfulDepots = 0;
                 bool hadErrors = false;
                 var allOkLock = new object();
 
+                int numWorkers = Math.Clamp(maxParallelDepots, 1, Math.Min(8, totalDepots));
+
+                lock (_drawLock)
+                {
+                    _slots = new DepotSlotState[numWorkers];
+                    _lastSlotLengths = new int[numWorkers];
+                    for (int s = 0; s < numWorkers; s++)
+                    {
+                        _slots[s] = new DepotSlotState();
+                    }
+                }
+
+                if (_isTty)
+                {
+                    for (int s = 0; s < numWorkers; s++)
+                    {
+                        Console.WriteLine();
+                    }
+                }
+
                 var workerTasks = new List<Task>();
-                int numWorkers = Math.Min(2, totalDepots);
 
                 for (int i = 0; i < numWorkers; i++)
                 {
@@ -342,93 +360,124 @@ namespace DepotDL.CLI
                                 }
                             }
 
-                            var psi = new ProcessStartInfo
+                            int maxRetries = 3;
+                            int retryCount = 0;
+                            while (retryCount < maxRetries)
                             {
-                                FileName = dotnetPath,
-                                UseShellExecute = false,
-                                RedirectStandardOutput = true,
-                                RedirectStandardError = true,
-                                CreateNoWindow = true,
-                                WorkingDirectory = Path.GetDirectoryName(ddmodPath) ?? AppDomain.CurrentDomain.BaseDirectory
-                            };
-                            foreach (var arg in argsList)
-                            {
-                                psi.ArgumentList.Add(arg);
-                            }
-
-                            var depotOutputErrors = new List<string>();
-                            string? lastOutputLine = null;
-
-                            using (var process = new Process { StartInfo = psi })
-                            {
-                                process.OutputDataReceived += (sender, lineEventArgs) =>
+                                if (retryCount > 0)
                                 {
-                                    if (!string.IsNullOrWhiteSpace(lineEventArgs.Data))
+                                    lock (_drawLock)
                                     {
-                                        lastOutputLine = lineEventArgs.Data;
+                                        _slots[slotId].Status = $"Retrying ({retryCount}/{maxRetries - 1})...";
+                                        _slots[slotId].Percent = null;
+                                        _slots[slotId].ActiveValidationFile = null;
                                     }
-                                    if (IsDepotDownloadFailure(lineEventArgs.Data))
-                                    {
-                                        lock (depotOutputErrors)
-                                        {
-                                            depotOutputErrors.Add(lineEventArgs.Data!);
-                                        }
-                                    }
-                                    ProcessProgressLine(slotId, lineEventArgs.Data);
+                                    DrawSlots(force: true);
+                                    System.Threading.Thread.Sleep(2000 * retryCount);
+                                }
+
+                                var psi = new ProcessStartInfo
+                                {
+                                    FileName = dotnetPath,
+                                    UseShellExecute = false,
+                                    RedirectStandardOutput = true,
+                                    RedirectStandardError = true,
+                                    CreateNoWindow = true,
+                                    WorkingDirectory = Path.GetDirectoryName(ddmodPath) ?? AppDomain.CurrentDomain.BaseDirectory
                                 };
-                                process.ErrorDataReceived += (sender, lineEventArgs) =>
+                                foreach (var arg in argsList)
                                 {
-                                    if (!string.IsNullOrEmpty(lineEventArgs.Data))
+                                    psi.ArgumentList.Add(arg);
+                                }
+
+                                var depotOutputErrors = new List<string>();
+                                string? lastOutputLine = null;
+
+                                using (var process = new Process { StartInfo = psi })
+                                {
+                                    process.OutputDataReceived += (sender, lineEventArgs) =>
                                     {
-                                        lastOutputLine = lineEventArgs.Data;
+                                        if (!string.IsNullOrWhiteSpace(lineEventArgs.Data))
+                                        {
+                                            lastOutputLine = lineEventArgs.Data;
+                                        }
                                         if (IsDepotDownloadFailure(lineEventArgs.Data))
                                         {
                                             lock (depotOutputErrors)
                                             {
-                                                depotOutputErrors.Add(lineEventArgs.Data);
+                                                depotOutputErrors.Add(lineEventArgs.Data!);
                                             }
                                         }
-                                    }
-                                };
-
-                                process.Start();
-                                process.BeginOutputReadLine();
-                                process.BeginErrorReadLine();
-                                process.WaitForExit();
-
-                                if (process.ExitCode != 0 || depotOutputErrors.Count > 0)
-                                {
-                                    depotOk = false;
-                                    string reason;
-                                    if (depotOutputErrors.Count > 0)
+                                        ProcessProgressLine(slotId, lineEventArgs.Data);
+                                    };
+                                    process.ErrorDataReceived += (sender, lineEventArgs) =>
                                     {
-                                        reason = depotOutputErrors[depotOutputErrors.Count - 1];
-                                    }
-                                    else if (!string.IsNullOrWhiteSpace(lastOutputLine))
+                                        if (!string.IsNullOrEmpty(lineEventArgs.Data))
+                                        {
+                                            lastOutputLine = lineEventArgs.Data;
+                                            if (IsDepotDownloadFailure(lineEventArgs.Data))
+                                            {
+                                                lock (depotOutputErrors)
+                                                {
+                                                    depotOutputErrors.Add(lineEventArgs.Data);
+                                                }
+                                            }
+                                        }
+                                    };
+
+                                    process.Start();
+                                    process.BeginOutputReadLine();
+                                    process.BeginErrorReadLine();
+                                    process.WaitForExit();
+
+                                    if (process.ExitCode != 0 || depotOutputErrors.Count > 0)
                                     {
-                                        // Take just the first line / short summary
-                                        var msgPart = lastOutputLine;
-                                        int nlIdx = msgPart.IndexOf('\n');
-                                        if (nlIdx > 0) msgPart = msgPart.Substring(0, nlIdx);
-                                        reason = TuiText.Shorten($"{msgPart} (exit code {process.ExitCode})", 60);
+                                        depotOk = false;
+                                        string reason;
+                                        if (depotOutputErrors.Count > 0)
+                                        {
+                                            reason = depotOutputErrors[depotOutputErrors.Count - 1];
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(lastOutputLine))
+                                        {
+                                            var msgPart = lastOutputLine;
+                                            int nlIdx = msgPart.IndexOf('\n');
+                                            if (nlIdx > 0) msgPart = msgPart.Substring(0, nlIdx);
+                                            reason = TuiText.Shorten($"{msgPart} (exit code {process.ExitCode})", 60);
+                                        }
+                                        else
+                                        {
+                                            reason = $"DepotDownloaderMod exited with code {process.ExitCode}";
+                                        }
+
+                                        retryCount++;
+                                        if (retryCount < maxRetries)
+                                        {
+                                            string depotId = depot.DepotId;
+                                            lock (_drawLock)
+                                            {
+                                                _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Retry", $"Depot {depotId} failed (attempt {retryCount}/{maxRetries}). Error: {reason}. Retrying...", ConsoleColor.Yellow));
+                                            }
+                                            DrawSlots(force: true);
+                                            continue;
+                                        }
+
+                                        string finalDepotId = depot.DepotId;
+                                        lock (_drawLock)
+                                        {
+                                            _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Failed", $"Depot {finalDepotId}: {reason} (after {maxRetries} attempts)", ConsoleColor.Red));
+                                        }
+                                        break;
                                     }
                                     else
                                     {
-                                        reason = $"DepotDownloaderMod exited with code {process.ExitCode}";
-                                    }
-                                    string depotId = depot.DepotId;
-                                    lock (_drawLock)
-                                    {
-                                        _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Failed", $"Depot {depotId}: {reason}", ConsoleColor.Red));
-                                    }
-                                }
-                                else
-                                {
-                                    depotOk = true;
-                                    string depotId = depot.DepotId;
-                                    lock (_drawLock)
-                                    {
-                                        _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Complete", $"Depot {depotId} downloaded successfully", ConsoleColor.Green));
+                                        depotOk = true;
+                                        string depotId = depot.DepotId;
+                                        lock (_drawLock)
+                                        {
+                                            _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Complete", $"Depot {depotId} downloaded successfully", ConsoleColor.Green));
+                                        }
+                                        break;
                                     }
                                 }
                             }
@@ -462,20 +511,23 @@ namespace DepotDL.CLI
                 // Flush any remaining pending logs and clear the slot lines
                 lock (_drawLock)
                 {
-                    if (_isTty)
+                    if (_isTty && _slots != null)
                     {
                         try
                         {
-                            int startTop = Math.Max(0, Console.CursorTop - 2);
+                            int startTop = Math.Max(0, Console.CursorTop - _slots.Length);
                             Console.SetCursorPosition(0, startTop);
                             while (_pendingLogs.Count > 0)
                             {
                                 ClearCurrentLine();
                                 _pendingLogs.Dequeue()();
                             }
-                            ClearCurrentLine();
-                            Console.WriteLine();
-                            ClearCurrentLine();
+                            for (int s = 0; s < _slots.Length; s++)
+                            {
+                                ClearCurrentLine();
+                                Console.WriteLine();
+                            }
+                            Console.SetCursorPosition(0, startTop);
                         }
                         catch
                         {
@@ -763,24 +815,23 @@ namespace DepotDL.CLI
         }
 
         /// <summary>
-        /// Clears the 2 slot lines at the bottom (used before printing final results).
+        /// Clears the slot lines at the bottom (used before printing final results).
         /// Must be called while holding _drawLock or when workers have finished.
         /// </summary>
         private static void ClearSlotLines()
         {
-            if (!_isTty) return;
+            if (!_isTty || _slots == null) return;
             try
             {
-                int startTop = Math.Max(0, Console.CursorTop - 2);
+                int startTop = Math.Max(0, Console.CursorTop - _slots.Length);
                 Console.SetCursorPosition(0, startTop);
-                ClearCurrentLine();
-                Console.WriteLine();
-                ClearCurrentLine();
-                Console.WriteLine();
+                for (int s = 0; s < _slots.Length; s++)
+                {
+                    ClearCurrentLine();
+                    Console.WriteLine();
+                    _lastSlotLengths[s] = 0;
+                }
                 Console.SetCursorPosition(0, startTop);
-
-                _lastSlotLengths[0] = 0;
-                _lastSlotLengths[1] = 0;
             }
             catch { }
         }
@@ -795,12 +846,12 @@ namespace DepotDL.CLI
                 }
                 _lastDrawTime = DateTime.UtcNow;
 
-                if (_isTty)
+                if (_isTty && _slots != null)
                 {
                     try
                     {
-                        // Move cursor up to where slot lines start (2 lines above current position)
-                        int startTop = Math.Max(0, Console.CursorTop - 2);
+                        // Move cursor up to where slot lines start
+                        int startTop = Math.Max(0, Console.CursorTop - _slots.Length);
                         Console.SetCursorPosition(0, startTop);
 
                         // Flush any pending permanent log lines (completion/failure messages)
@@ -811,13 +862,13 @@ namespace DepotDL.CLI
                             logAction();
                         }
 
-                        // Redraw the two slot lines without clear-blanking to avoid flickering.
+                        // Redraw the slot lines without clear-blanking to avoid flickering.
                         // Any leftover characters are cleared via character-based padding inside DrawSlotLine.
-                        DrawSlotLine(0);
-                        Console.WriteLine();
-
-                        DrawSlotLine(1);
-                        Console.WriteLine();
+                        for (int s = 0; s < _slots.Length; s++)
+                        {
+                            DrawSlotLine(s);
+                            Console.WriteLine();
+                        }
                     }
                     catch
                     {
@@ -878,6 +929,7 @@ namespace DepotDL.CLI
             Console.WriteLine("  -d, --ddmod <path>          Direct path to DepotDownloaderMod.dll (Auto-resolved if omitted).");
             Console.WriteLine("  -n, --dotnet <path>         Direct path to dotnet executable (Auto-resolved if omitted).");
             Console.WriteLine($"      --max-downloads <n>     Parallel chunk downloads per depot. Default: {DepotDownloadDefaults.MaxDownloads}, max: 128.");
+            Console.WriteLine("  -p, --max-parallel-depots <n> Max parallel depot downloads (1 to 8). Default: 2.");
             Console.WriteLine("  -h, --help                  Show this usage help screen.");
             Console.WriteLine("\nNote: Launching DepotDL.CLI without arguments opens the interactive TUI dashboard mode.");
             Console.ForegroundColor = orig;

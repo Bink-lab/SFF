@@ -55,8 +55,9 @@ namespace DepotDL.CLI
                     "3. Choose Game Lua Config File",
                     "4. Configure Manifests Cache",
                     "5. Configure Output Folder",
-                    "6. Start Download Process",
-                    "7. Exit Application"
+                    "6. Application Settings",
+                    "7. Start Download Process",
+                    "8. Exit Application"
                 };
 
                 var rightStats = new List<(string Key, string Val, ConsoleColor Color)>
@@ -67,6 +68,7 @@ namespace DepotDL.CLI
                     ("Manifests Cache:", manifestsVal, ConsoleColor.Gray),
                     ("Download Folder:", outputVal, string.IsNullOrEmpty(session.OutputDir) ? ConsoleColor.DarkGray : ConsoleColor.Gray),
                     ("Output Base:", outputBaseVal, string.IsNullOrEmpty(session.DownloadBaseDir) ? ConsoleColor.DarkGray : ConsoleColor.Gray),
+                    ("Parallel Workers:", session.MaxParallelDepots.ToString(), ConsoleColor.Cyan),
                     ("Library Index:", libraryStats, missingCount > 0 ? ConsoleColor.Yellow : ConsoleColor.Green)
                 };
 
@@ -102,11 +104,11 @@ namespace DepotDL.CLI
                         }
                         else
                         {
-                            if (i == 5 && string.IsNullOrEmpty(session.LuaPath))
+                            if (i == 6 && string.IsNullOrEmpty(session.LuaPath))
                             {
                                 Console.ForegroundColor = ConsoleColor.DarkGray;
                             }
-                            else if (i == 5)
+                            else if (i == 6)
                             {
                                 Console.ForegroundColor = ConsoleColor.Green;
                             }
@@ -207,6 +209,11 @@ namespace DepotDL.CLI
                     }
                     else if (menuIndex == 5)
                     {
+                        RunApplicationSettings(session);
+                        verified = LibraryManager.VerifyLibraryOnStartup(out totalCount, out missingCount);
+                    }
+                    else if (menuIndex == 6)
+                    {
                         if (string.IsNullOrEmpty(session.LuaPath))
                         {
                             PromptText("DOWNLOAD PROCESS", "No Lua config file loaded! Please select a Lua file first. Press Enter to return.", "");
@@ -241,7 +248,7 @@ namespace DepotDL.CLI
 
                         Console.Clear();
                         
-                        int exitCode = Program.TriggerDownloadProcess(session.LuaPath, session.ManifestsDir, session.OutputDir, ddmodPath, dotnetPath, session.SelectedDepots);
+                        int exitCode = Program.TriggerDownloadProcess(session.LuaPath, session.ManifestsDir, session.OutputDir, ddmodPath, dotnetPath, session.SelectedDepots, session.MaxParallelDepots);
 
                         if (exitCode == 0)
                         {
@@ -253,7 +260,7 @@ namespace DepotDL.CLI
                         }
                         verified = LibraryManager.VerifyLibraryOnStartup(out totalCount, out missingCount);
                     }
-                    else if (menuIndex == 6)
+                    else if (menuIndex == 7)
                     {
                         SaveSession(session);
                         Console.Clear();
@@ -330,14 +337,24 @@ namespace DepotDL.CLI
                             Console.Write(TuiText.Pad("> [BATCH OPERATIONS...]", 38));
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 14));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 13));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 10));
                         }
                         else
                         {
                             Console.Write(TuiText.Pad("> [BACK TO DASHBOARD]", 38));
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 14));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 13));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 10));
                         }
                         
                         Console.ResetColor();
@@ -367,14 +384,24 @@ namespace DepotDL.CLI
                             Console.ForegroundColor = ConsoleColor.Yellow;
                             Console.Write(TuiText.Pad("  [BATCH OPERATIONS...]", 38));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 14));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 13));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 10));
                         }
                         else
                         {
                             Console.ForegroundColor = ConsoleColor.Gray;
                             Console.Write(TuiText.Pad("  [BACK TO DASHBOARD]", 38));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 14));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 13));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 10));
                         }
                     }
 
@@ -456,9 +483,10 @@ namespace DepotDL.CLI
                 {
                     "1. Open Download Folder in File Explorer",
                     "2. Verify Files (Scan Size)",
-                    "3. Load & Re-download/Update Game",
-                    "4. Uninstall & Delete Game Files",
-                    "5. Back"
+                    "3. Deep Verify & Repair (Hash Check & Download)",
+                    "4. Load & Re-download/Update Game",
+                    "5. Uninstall & Delete Game Files",
+                    "6. Back"
                 };
 
                 using (CenterConsoleOutput(80))
@@ -509,7 +537,7 @@ namespace DepotDL.CLI
                     }
                     else
                     {
-                        if (i == 3)
+                        if (i == 4)
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.WriteLine($"   {menuItems[i]}");
@@ -594,6 +622,56 @@ namespace DepotDL.CLI
                     else if (selectedIndex == 2)
                     {
                         Console.Clear();
+                        var repairSession = new TuiSession
+                        {
+                            LuaPath = game.LuaPath,
+                            OutputDir = game.OutputDir,
+                            ManifestsDir = session.ManifestsDir,
+                            MaxParallelDepots = session.MaxParallelDepots,
+                            RyuuApiKey = session.RyuuApiKey
+                        };
+
+                        ParseLuaFileIntoSession(repairSession);
+
+                        var restoredDepots = new List<DepotInfo>();
+                        foreach (var depId in game.DepotIds)
+                        {
+                            var match = repairSession.AllDepots.Find(d => d.DepotId == depId);
+                            if (match != null) restoredDepots.Add(match);
+                        }
+                        if (restoredDepots.Count > 0)
+                        {
+                            repairSession.SelectedDepots = restoredDepots;
+                        }
+
+                        int exitCode = Program.TriggerDownloadProcess(
+                            repairSession.LuaPath, 
+                            repairSession.ManifestsDir, 
+                            repairSession.OutputDir, 
+                            ddmodPath, 
+                            dotnetPath, 
+                            repairSession.SelectedDepots,
+                            repairSession.MaxParallelDepots
+                        );
+
+                        if (exitCode == 0)
+                        {
+                            bool exists = Directory.Exists(game.OutputDir);
+                            long size = exists ? LibraryManager.GetDirectorySize(game.OutputDir) : 0;
+                            game.IsVerified = exists;
+                            game.TotalSizeBytes = size;
+                            LibraryManager.AddOrUpdateGame(game);
+                            
+                            PromptText("VERIFY & REPAIR SUCCESS", $"Deep verification and repair completed successfully! Cleaned and verified size: {FormatSize(size)}. Press Enter.", "");
+                        }
+                        else
+                        {
+                            PromptText("VERIFY & REPAIR FAILED", $"Deep verification and repair failed with exit code: {exitCode}. Press Enter.", "");
+                        }
+                    }
+                    else if (selectedIndex == 3)
+                    {
+                        Console.Clear();
                         session.LuaPath = game.LuaPath;
                         session.OutputDir = game.OutputDir;
 
@@ -620,7 +698,7 @@ namespace DepotDL.CLI
                         PromptText("LOAD CONFIG", "Active session populated! Return to Dashboard to download. Press Enter.", "");
                         return true;
                     }
-                    else if (selectedIndex == 3)
+                    else if (selectedIndex == 4)
                     {
                         Console.Clear();
                         using (CenterConsoleOutput(80))
@@ -654,7 +732,7 @@ namespace DepotDL.CLI
                             return false;
                         }
                     }
-                    else if (selectedIndex == 4)
+                    else if (selectedIndex == 5)
                     {
                         return false;
                     }
@@ -884,7 +962,9 @@ namespace DepotDL.CLI
                 {
                     LuaPath = game.LuaPath,
                     OutputDir = game.OutputDir,
-                    ManifestsDir = session.ManifestsDir
+                    ManifestsDir = session.ManifestsDir,
+                    MaxParallelDepots = session.MaxParallelDepots,
+                    RyuuApiKey = session.RyuuApiKey
                 };
 
                 // Restore DownloadBaseDir from OutputDir so ParseLuaFileIntoSession recomputes correctly
@@ -913,7 +993,8 @@ namespace DepotDL.CLI
                     batchSession.OutputDir, 
                     ddmodPath, 
                     dotnetPath, 
-                    batchSession.SelectedDepots
+                    batchSession.SelectedDepots,
+                    batchSession.MaxParallelDepots
                 );
 
                 if (exitCode == 0)
@@ -2032,7 +2113,7 @@ namespace DepotDL.CLI
             return $"{os} {depot.OsArch}";
         }
 
-        private static string? PromptText(string title, string prompt, string defaultValue)
+        private static string? PromptText(string title, string prompt, string defaultValue, bool mask = false)
         {
             Console.Clear();
             int consoleWidth = 80;
@@ -2077,7 +2158,8 @@ namespace DepotDL.CLI
                 Console.Write(new string(' ', leftPad));
                 Console.Write("║ ");
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.Write(TuiText.Pad("Default: " + defaultValue, boxWidth - 4));
+                string displayVal = mask ? new string('*', Math.Min(12, defaultValue.Length)) : defaultValue;
+                Console.Write(TuiText.Pad("Current: " + displayVal, boxWidth - 4));
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write(" ║\n");
             }
@@ -2097,13 +2179,13 @@ namespace DepotDL.CLI
             int inputCol = leftPad + 4;
             Console.SetCursorPosition(inputCol, inputRow);
 
-            string? result = ReadLineWithEscape();
+            string? result = ReadLineWithEscape(mask);
             if (result == null) return null;
 
             return string.IsNullOrEmpty(result) ? defaultValue : result.Trim();
         }
 
-        private static string? ReadLineWithEscape()
+        private static string? ReadLineWithEscape(bool mask = false)
         {
             var builder = new StringBuilder();
             while (true)
@@ -2133,7 +2215,145 @@ namespace DepotDL.CLI
                 else if (keyInfo.KeyChar >= 32)
                 {
                     builder.Append(keyInfo.KeyChar);
-                    Console.Write(keyInfo.KeyChar);
+                    if (mask)
+                    {
+                        Console.Write('*');
+                    }
+                    else
+                    {
+                        Console.Write(keyInfo.KeyChar);
+                    }
+                }
+            }
+        }
+
+        private static void RunApplicationSettings(TuiSession session)
+        {
+            int selectedIndex = 0;
+            while (true)
+            {
+                Console.Clear();
+                string maxParallelStr = session.MaxParallelDepots.ToString();
+                string manifestsDirStr = session.ManifestsDir ?? "[Not Configured]";
+                string outputDirStr = session.DownloadBaseDir ?? "[Auto]";
+                string maskedApiKey = string.IsNullOrEmpty(session.RyuuApiKey) 
+                    ? "[Not Configured]" 
+                    : new string('*', Math.Min(12, session.RyuuApiKey.Length));
+
+                var menuItems = new List<string>
+                {
+                    $"1. Max Parallel Depot Downloads: {maxParallelStr}",
+                    $"2. Manifests Cache Folder       : {TuiText.ShortenTail(manifestsDirStr, 40)}",
+                    $"3. Download Base Folder         : {TuiText.ShortenTail(outputDirStr, 40)}",
+                    $"4. Ryuu API Key                 : {maskedApiKey}",
+                    "5. Back"
+                };
+
+                using (CenterConsoleOutput(80))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════╗");
+                    Console.Write("║ ");
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write(TuiText.Pad("APPLICATION CONFIGURATION SETTINGS", 76));
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine(" ║");
+                    Console.WriteLine("╠══════════════════════════════════════════════════════════════════════════════╣");
+
+                    void DrawSettingRow(string label, string val, ConsoleColor valColor)
+                    {
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.Write("║  ");
+                        Console.ForegroundColor = ConsoleColor.DarkCyan;
+                        Console.Write(TuiText.Pad(label, 26));
+                        Console.ForegroundColor = valColor;
+                        Console.Write(TuiText.Pad(val, 46));
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.WriteLine("  ║");
+                    }
+
+                    DrawSettingRow("Max Parallel Depots:", maxParallelStr, ConsoleColor.Green);
+                    DrawSettingRow("Manifests Cache Path:", TuiText.ShortenTail(manifestsDirStr, 44), session.ManifestsDirConfigured ? ConsoleColor.White : ConsoleColor.Yellow);
+                    DrawSettingRow("Download Base Path:", TuiText.ShortenTail(outputDirStr, 44), ConsoleColor.White);
+                    DrawSettingRow("Ryuu API Key:", maskedApiKey, string.IsNullOrEmpty(session.RyuuApiKey) ? ConsoleColor.Yellow : ConsoleColor.Green);
+
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════╝");
+                    Console.ResetColor();
+
+                    for (int i = 0; i < menuItems.Count; i++)
+                    {
+                        if (i == selectedIndex)
+                        {
+                            Console.BackgroundColor = ConsoleColor.Cyan;
+                            Console.ForegroundColor = ConsoleColor.Black;
+                            Console.WriteLine($">  {menuItems[i]}");
+                            Console.ResetColor();
+                        }
+                        else
+                        {
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine($"   {menuItems[i]}");
+                            Console.ResetColor();
+                        }
+                    }
+
+                    Console.ForegroundColor = ConsoleColor.DarkCyan;
+                    Console.WriteLine("\n══════════════════════════════════════════════════════════════════════════════════");
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("  [↑/↓] Navigate   [Enter] Modify Selected Setting   [Esc] Save & Return");
+                    Console.ForegroundColor = ConsoleColor.DarkCyan;
+                    Console.WriteLine("══════════════════════════════════════════════════════════════════════════════════");
+                    Console.ResetColor();
+                }
+
+                var key = Console.ReadKey(true).Key;
+                if (key == ConsoleKey.UpArrow)
+                {
+                    selectedIndex = (selectedIndex - 1 + menuItems.Count) % menuItems.Count;
+                }
+                else if (key == ConsoleKey.DownArrow)
+                {
+                    selectedIndex = (selectedIndex + 1) % menuItems.Count;
+                }
+                else if (key == ConsoleKey.Escape)
+                {
+                    SaveSession(session);
+                    return;
+                }
+                else if (key == ConsoleKey.Enter)
+                {
+                    if (selectedIndex == 0)
+                    {
+                        var input = PromptText("MAX PARALLEL DEPOTS", "Enter number of parallel workers (1 to 8):", session.MaxParallelDepots.ToString());
+                        if (input != null && int.TryParse(input, out var val))
+                        {
+                            session.MaxParallelDepots = Math.Clamp(val, 1, 8);
+                            SaveSession(session);
+                        }
+                    }
+                    else if (selectedIndex == 1)
+                    {
+                        RunConfigureManifestsFolderAction(session);
+                    }
+                    else if (selectedIndex == 2)
+                    {
+                        RunConfigureOutputAction(session);
+                    }
+                    else if (selectedIndex == 3)
+                    {
+                        var input = PromptText("RYUU API KEY", "Enter Ryuu API Key:", session.RyuuApiKey ?? "", mask: true);
+                        if (input != null)
+                        {
+                            session.RyuuApiKey = string.IsNullOrWhiteSpace(input) ? null : input.Trim();
+                            SaveSession(session);
+                        }
+                    }
+                    else if (selectedIndex == 4)
+                    {
+                        SaveSession(session);
+                        return;
+                    }
                 }
             }
         }
