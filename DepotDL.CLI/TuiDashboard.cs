@@ -337,14 +337,24 @@ namespace DepotDL.CLI
                             Console.Write(TuiText.Pad("> [BATCH OPERATIONS...]", 38));
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 14));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 13));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 10));
                         }
                         else
                         {
                             Console.Write(TuiText.Pad("> [BACK TO DASHBOARD]", 38));
                             Console.ResetColor();
                             Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 14));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 13));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 10));
                         }
                         
                         Console.ResetColor();
@@ -374,14 +384,24 @@ namespace DepotDL.CLI
                             Console.ForegroundColor = ConsoleColor.Yellow;
                             Console.Write(TuiText.Pad("  [BATCH OPERATIONS...]", 38));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 14));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 13));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 10));
                         }
                         else
                         {
                             Console.ForegroundColor = ConsoleColor.Gray;
                             Console.Write(TuiText.Pad("  [BACK TO DASHBOARD]", 38));
                             Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(" ║ ".PadRight(19) + "║ ".PadRight(18) + "║ ".PadRight(15));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 14));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 13));
+                            Console.Write(" ║ ");
+                            Console.Write(TuiText.Pad("", 10));
                         }
                     }
 
