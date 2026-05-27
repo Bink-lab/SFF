@@ -214,3 +214,8 @@ sff/_gc.py
 !SFF.ico
 !SFF.png
 AGENTS.md
+
+# --- DepotDownloaderMod_src ---
+third_party/DepotDownloaderMod_src/DepotDownloader/bin/
+third_party/DepotDownloaderMod_src/DepotDownloader/obj/
+depots/

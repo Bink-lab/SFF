@@ -15,6 +15,15 @@ namespace DepotDL.CLI
         public string Status { get; set; } = "Idle";
         public double? Percent { get; set; }
         public string? ActiveValidationFile { get; set; }
+        public string? OutputPath { get; set; }
+
+        public long TotalUncompressedSize { get; set; } = 0;
+        public Dictionary<string, long> FileSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public DateTime? DownloadStartTime { get; set; }
+        public DateTime LastSpeedUpdateTime { get; set; } = DateTime.MinValue;
+        public double LastPercent { get; set; } = 0;
+        public double CurrentSpeedBps { get; set; } = 0;
+        public string? SpeedOverrideString { get; set; }
     }
 
     public class Program
@@ -164,6 +173,9 @@ namespace DepotDL.CLI
         {
             void LogError(string message) => WriteColored(message, ConsoleColor.Red);
 
+            bool initialCursorVisible = true;
+            try { if (OperatingSystem.IsWindows()) { initialCursorVisible = Console.CursorVisible; Console.CursorVisible = false; } } catch {}
+
             // Register console cancel handlers for safe VDF cleanup
             AppDomain.CurrentDomain.ProcessExit += (s, e) => SafeCleanupKeys();
             Console.CancelKeyPress += (s, e) => SafeCleanupKeys();
@@ -306,10 +318,19 @@ namespace DepotDL.CLI
                         {
                             lock (_drawLock)
                             {
-                                _slots[slotId].DepotId = depot.DepotId;
-                                _slots[slotId].Status = "Initializing...";
-                                _slots[slotId].Percent = null;
-                                _slots[slotId].ActiveValidationFile = null;
+                                var s = _slots[slotId];
+                                s.DepotId = depot.DepotId;
+                                s.Status = "Initializing...";
+                                s.Percent = null;
+                                s.ActiveValidationFile = null;
+                                s.OutputPath = outputPath;
+                                s.TotalUncompressedSize = 0;
+                                s.FileSizes.Clear();
+                                s.DownloadStartTime = null;
+                                s.LastSpeedUpdateTime = DateTime.MinValue;
+                                s.LastPercent = 0;
+                                s.CurrentSpeedBps = 0;
+                                s.SpeedOverrideString = null;
                             }
                             DrawSlots(force: true);
 
@@ -496,10 +517,19 @@ namespace DepotDL.CLI
 
                             lock (_drawLock)
                             {
-                                _slots[slotId].DepotId = null;
-                                _slots[slotId].Status = "Idle";
-                                _slots[slotId].Percent = null;
-                                _slots[slotId].ActiveValidationFile = null;
+                                var s = _slots[slotId];
+                                s.DepotId = null;
+                                s.Status = "Idle";
+                                s.Percent = null;
+                                s.ActiveValidationFile = null;
+                                s.OutputPath = null;
+                                s.TotalUncompressedSize = 0;
+                                s.FileSizes.Clear();
+                                s.DownloadStartTime = null;
+                                s.LastSpeedUpdateTime = DateTime.MinValue;
+                                s.LastPercent = 0;
+                                s.CurrentSpeedBps = 0;
+                                s.SpeedOverrideString = null;
                             }
                             DrawSlots(force: true);
                         }
@@ -588,6 +618,7 @@ namespace DepotDL.CLI
             }
             finally
             {
+                try { if (OperatingSystem.IsWindows()) { Console.CursorVisible = initialCursorVisible; } } catch {}
                 SafeCleanupKeys();
                 SafeCleanupDepotDownloaderFolder(outputPath, ddmodPath);
             }
@@ -660,12 +691,47 @@ namespace DepotDL.CLI
                     }
                     else if (line.StartsWith("Pre-allocating", StringComparison.OrdinalIgnoreCase))
                     {
+                        var slot = _slots[slotId];
                         lock (_drawLock)
                         {
-                            _slots[slotId].Status = "Pre-allocating...";
-                            _slots[slotId].Percent = null;
+                            slot.Status = "Pre-allocating...";
+                            slot.Percent = null;
                         }
                         DrawSlots(force: true);
+
+                        string rawPath = line.Substring(14).Trim();
+                        string resolvedPath = rawPath;
+                        if (!Path.IsPathRooted(resolvedPath) && !string.IsNullOrEmpty(slot.OutputPath))
+                        {
+                            resolvedPath = Path.Combine(slot.OutputPath, rawPath);
+                        }
+
+                        Task.Run(async () =>
+                        {
+                            for (int attempt = 0; attempt < 5; attempt++)
+                            {
+                                try
+                                {
+                                    if (File.Exists(resolvedPath))
+                                    {
+                                        long size = new FileInfo(resolvedPath).Length;
+                                        if (size > 0)
+                                        {
+                                            lock (_drawLock)
+                                            {
+                                                if (slot.FileSizes.TryAdd(rawPath, size))
+                                                {
+                                                    slot.TotalUncompressedSize += size;
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                                catch {}
+                                await Task.Delay(20);
+                            }
+                        });
                     }
                     return;
                 }
@@ -690,8 +756,56 @@ namespace DepotDL.CLI
                     {
                         lock (_drawLock)
                         {
-                            _slots[slotId].Percent = percentage;
-                            _slots[slotId].Status = "Downloading";
+                            var slot = _slots[slotId];
+                            slot.Percent = percentage;
+                            slot.Status = "Downloading";
+
+                            var speedMatch = Regex.Match(line, @"\(([^)]+)\)\s*$");
+                            if (speedMatch.Success)
+                            {
+                                slot.SpeedOverrideString = speedMatch.Groups[1].Value;
+                            }
+                            else
+                            {
+                                slot.SpeedOverrideString = null;
+                            }
+
+                            DateTime now = DateTime.UtcNow;
+                            if (slot.DownloadStartTime == null)
+                            {
+                                slot.DownloadStartTime = now;
+                                slot.LastSpeedUpdateTime = now;
+                                slot.LastPercent = percentage;
+                            }
+                            else
+                            {
+                                double timeDiffSec = (now - slot.LastSpeedUpdateTime).TotalSeconds;
+                                if (timeDiffSec >= 0.5)
+                                {
+                                    double pctDiff = percentage - slot.LastPercent;
+                                    if (pctDiff > 0 && slot.TotalUncompressedSize > 0)
+                                    {
+                                        double bytesDiff = (pctDiff / 100.0) * slot.TotalUncompressedSize;
+                                        double speedBps = bytesDiff / timeDiffSec;
+
+                                        if (slot.CurrentSpeedBps == 0)
+                                        {
+                                            slot.CurrentSpeedBps = speedBps;
+                                        }
+                                        else
+                                        {
+                                            slot.CurrentSpeedBps = (slot.CurrentSpeedBps * 0.7) + (speedBps * 0.3);
+                                        }
+                                    }
+                                    else if (percentage >= 100.0)
+                                    {
+                                        slot.CurrentSpeedBps = 0;
+                                    }
+
+                                    slot.LastSpeedUpdateTime = now;
+                                    slot.LastPercent = percentage;
+                                }
+                            }
                         }
                         DrawSlots();
                     }
@@ -717,11 +831,36 @@ namespace DepotDL.CLI
             catch {}
         }
 
+        private static string FormatSpeed(double speedBps)
+        {
+            if (speedBps <= 0) return "0 B/s";
+            if (speedBps < 1024) return $"{speedBps:F0} B/s";
+            if (speedBps < 1024 * 1024) return $"{speedBps / 1024.0:F1} KB/s";
+            return $"{speedBps / (1024.0 * 1024.0):F1} MB/s";
+        }
+
         private static void DrawSlotLine(int slotId)
         {
             // Matches the DownloadTui.WriteStatus layout:
             //   pad + "  │ " + Pad(label, 16) + " │ " + message
             var slot = _slots[slotId];
+
+            if (slot.Percent != null && slot.Status == "Downloading" && slot.LastSpeedUpdateTime != DateTime.MinValue)
+            {
+                double timeSinceUpdate = (DateTime.UtcNow - slot.LastSpeedUpdateTime).TotalSeconds;
+                if (timeSinceUpdate > 3.0)
+                {
+                    if (timeSinceUpdate > 6.0)
+                    {
+                        slot.CurrentSpeedBps = 0;
+                    }
+                    else
+                    {
+                        slot.CurrentSpeedBps *= 0.5;
+                    }
+                }
+            }
+
             string pad = new string(' ', DownloadTui.LeftPad);
             int charsWritten = pad.Length;
 
@@ -784,8 +923,18 @@ namespace DepotDL.CLI
                     charsWritten += 2;
 
                     Console.ForegroundColor = ConsoleColor.Gray;
-                    Console.Write(slot.Status);
-                    charsWritten += slot.Status.Length;
+                    string speedStr = "";
+                    if (!string.IsNullOrEmpty(slot.SpeedOverrideString))
+                    {
+                        speedStr = $" ({slot.SpeedOverrideString})";
+                    }
+                    else if (slot.CurrentSpeedBps > 0)
+                    {
+                        speedStr = $" ({FormatSpeed(slot.CurrentSpeedBps)})";
+                    }
+                    string statusText = slot.Status + speedStr;
+                    Console.Write(statusText);
+                    charsWritten += statusText.Length;
                 }
                 else
                 {

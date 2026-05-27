@@ -11,6 +11,7 @@ namespace DepotDL.CLI
     {
         public static int RunInteractiveTui(string ddmodPath, string dotnetPath)
         {
+            try { if (OperatingSystem.IsWindows()) Console.CursorVisible = false; } catch {}
             var session = new TuiSession();
             
             string defaultManifestsDir = "manifests";
@@ -181,6 +182,7 @@ namespace DepotDL.CLI
                 {
                     SaveSession(session);
                     Console.Clear();
+                    try { if (OperatingSystem.IsWindows()) Console.CursorVisible = true; } catch {}
                     return 0;
                 }
                 else if (key == ConsoleKey.Enter)
@@ -264,6 +266,7 @@ namespace DepotDL.CLI
                     {
                         SaveSession(session);
                         Console.Clear();
+                        try { if (OperatingSystem.IsWindows()) Console.CursorVisible = true; } catch {}
                         return 0;
                     }
                 }
