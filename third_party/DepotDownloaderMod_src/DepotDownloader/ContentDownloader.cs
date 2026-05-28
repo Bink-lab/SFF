@@ -1166,7 +1166,7 @@ namespace DepotDownloader
                     {
                         depotDownloadCounter.sizeDownloaded += file.TotalSize;
                         double elapsedSec = (DateTime.UtcNow - downloadStartTime).TotalSeconds;
-                        double speedBps = elapsedSec > 0.1 ? (depotDownloadCounter.depotBytesUncompressed / elapsedSec) : 0;
+                        double speedBps = elapsedSec > 0.1 ? (depotDownloadCounter.depotBytesCompressed / elapsedSec) : 0;
                         string speedStr = speedBps > 0 ? $" ({FormatSpeed(speedBps)})" : "";
                         Console.WriteLine("{0,6:#00.00}% {1}{2}", (depotDownloadCounter.sizeDownloaded / (float)depotDownloadCounter.completeDownloadSize) * 100.0f, fileFinalPath, speedStr);
                     }
@@ -1365,7 +1365,7 @@ namespace DepotDownloader
             {
                 var fileFinalPath = Path.Combine(depot.InstallDir, file.FileName);
                 double elapsedSec = (DateTime.UtcNow - downloadStartTime).TotalSeconds;
-                double speedBps = elapsedSec > 0.1 ? (depotDownloadCounter.depotBytesUncompressed / elapsedSec) : 0;
+                double speedBps = elapsedSec > 0.1 ? (depotDownloadCounter.depotBytesCompressed / elapsedSec) : 0;
                 string speedStr = speedBps > 0 ? $" ({FormatSpeed(speedBps)})" : "";
                 Console.WriteLine("{0,6:#00.00}% {1}{2}", (sizeDownloaded / (float)depotDownloadCounter.completeDownloadSize) * 100.0f, fileFinalPath, speedStr);
             }

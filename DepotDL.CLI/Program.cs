@@ -18,6 +18,7 @@ namespace DepotDL.CLI
         public string? OutputPath { get; set; }
 
         public long TotalUncompressedSize { get; set; } = 0;
+        public long LastSpeedTotalBytes { get; set; } = 0;
         public Dictionary<string, long> FileSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
         public DateTime? DownloadStartTime { get; set; }
         public DateTime LastSpeedUpdateTime { get; set; } = DateTime.MinValue;
@@ -325,6 +326,7 @@ namespace DepotDL.CLI
                                 s.ActiveValidationFile = null;
                                 s.OutputPath = outputPath;
                                 s.TotalUncompressedSize = 0;
+                                s.LastSpeedTotalBytes = 0;
                                 s.FileSizes.Clear();
                                 s.DownloadStartTime = null;
                                 s.LastSpeedUpdateTime = DateTime.MinValue;
@@ -524,6 +526,7 @@ namespace DepotDL.CLI
                                 s.ActiveValidationFile = null;
                                 s.OutputPath = null;
                                 s.TotalUncompressedSize = 0;
+                                s.LastSpeedTotalBytes = 0;
                                 s.FileSizes.Clear();
                                 s.DownloadStartTime = null;
                                 s.LastSpeedUpdateTime = DateTime.MinValue;
@@ -782,10 +785,10 @@ namespace DepotDL.CLI
                                 double timeDiffSec = (now - slot.LastSpeedUpdateTime).TotalSeconds;
                                 if (timeDiffSec >= 0.5)
                                 {
-                                    double pctDiff = percentage - slot.LastPercent;
-                                    if (pctDiff > 0 && slot.TotalUncompressedSize > 0)
+                                    long currentTotalBytes = slot.TotalUncompressedSize;
+                                    double bytesDiff = currentTotalBytes - slot.LastSpeedTotalBytes;
+                                    if (bytesDiff > 0)
                                     {
-                                        double bytesDiff = (pctDiff / 100.0) * slot.TotalUncompressedSize;
                                         double speedBps = bytesDiff / timeDiffSec;
 
                                         if (slot.CurrentSpeedBps == 0)
@@ -802,6 +805,7 @@ namespace DepotDL.CLI
                                         slot.CurrentSpeedBps = 0;
                                     }
 
+                                    slot.LastSpeedTotalBytes = currentTotalBytes;
                                     slot.LastSpeedUpdateTime = now;
                                     slot.LastPercent = percentage;
                                 }
