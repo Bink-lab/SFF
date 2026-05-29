@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Text;
@@ -159,7 +160,7 @@ namespace DepotDL.CLI
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write("│");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("   [Space] Toggle   ");
+                Console.Write("   [L] Library   ");
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write("│");
                 Console.ForegroundColor = ConsoleColor.Cyan;
@@ -184,6 +185,12 @@ namespace DepotDL.CLI
                     Console.Clear();
                     try { if (OperatingSystem.IsWindows()) Console.CursorVisible = true; } catch {}
                     return 0;
+                }
+                else if (key == ConsoleKey.L)
+                {
+                    RunLibraryDashboard(session, ddmodPath, dotnetPath);
+                    SaveSession(session);
+                    verified = LibraryManager.VerifyLibraryOnStartup(out totalCount, out missingCount);
                 }
                 else if (key == ConsoleKey.Enter)
                 {
@@ -248,8 +255,55 @@ namespace DepotDL.CLI
                         }
                         SaveSession(session);
 
+                        // Pre-download summary: manifest matches + resume status
+                        {
+                            int matchedManifests = 0;
+                            int depotsWithManifestId = session.SelectedDepots.Count(d => !string.IsNullOrEmpty(d.ManifestId));
+                            if (depotsWithManifestId > 0 && !string.IsNullOrEmpty(session.ManifestsDir) && Directory.Exists(session.ManifestsDir))
+                            {
+                                var localNames = Directory.GetFiles(session.ManifestsDir, "*.manifest")
+                                    .Select(f => Path.GetFileNameWithoutExtension(f))
+                                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                                foreach (var depot in session.SelectedDepots)
+                                {
+                                    if (!string.IsNullOrEmpty(depot.ManifestId))
+                                    {
+                                        if (localNames.Contains($"{depot.DepotId}_{depot.ManifestId}") || localNames.Contains(depot.ManifestId))
+                                            matchedManifests++;
+                                    }
+                                }
+                            }
+
+                            string outputForCheck = !string.IsNullOrEmpty(session.OutputDir) ? session.OutputDir : string.Empty;
+                            int alreadyDone = 0;
+                            if (!string.IsNullOrEmpty(outputForCheck))
+                            {
+                                var done = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                try
+                                {
+                                    var dir = Path.Combine(outputForCheck, ".depotdl_progress");
+                                    if (Directory.Exists(dir))
+                                        done = Directory.GetFiles(dir, "*.done").Select(f => Path.GetFileNameWithoutExtension(f)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                                }
+                                catch { }
+                                alreadyDone = session.SelectedDepots.Count(d => done.Contains(d.DepotId));
+                            }
+
+                            var summaryLines = new List<string> { $"Depots to download: {session.SelectedDepots.Count}" };
+                            if (depotsWithManifestId > 0)
+                                summaryLines.Add($"Local manifests matched: {matchedManifests} / {depotsWithManifestId}");
+                            if (matchedManifests < depotsWithManifestId)
+                                summaryLines.Add($"{depotsWithManifestId - matchedManifests} manifest(s) will be fetched from Steam");
+                            if (alreadyDone > 0)
+                                summaryLines.Add($"Resume: {alreadyDone} previously-completed depot(s) will be skipped");
+
+                            Console.Clear();
+                            WriteCenteredStatusBox("STARTING DOWNLOAD", summaryLines, ConsoleColor.Cyan);
+                            System.Threading.Thread.Sleep(1000);
+                        }
+
                         Console.Clear();
-                        
+
                         int exitCode = Program.TriggerDownloadProcess(session.LuaPath, session.ManifestsDir, session.OutputDir, ddmodPath, dotnetPath, session.SelectedDepots, session.MaxParallelDepots);
 
                         if (exitCode == 0)
@@ -1959,9 +2013,13 @@ namespace DepotDL.CLI
             {
                 selected[i] = currentlySelected.Exists(d => d.DepotId == options[i].DepotId);
             }
+            bool showEmptyWarning = false;
 
             while (true)
             {
+                bool _showEmptyWarning = showEmptyWarning;
+                showEmptyWarning = false;
+
                 Console.Clear();
                 using (CenterConsoleOutput(80))
                 {
@@ -2004,6 +2062,13 @@ namespace DepotDL.CLI
                     }
                 }
 
+                if (_showEmptyWarning)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\n  [!] Select at least one depot before confirming.");
+                    Console.ResetColor();
+                }
+
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.WriteLine("\n══════════════════════════════════════════════════════════════════════════════════");
                 Console.ForegroundColor = ConsoleColor.Cyan;
@@ -2040,6 +2105,11 @@ namespace DepotDL.CLI
                     for (int i = 0; i < options.Count; i++)
                     {
                         if (selected[i]) result.Add(options[i]);
+                    }
+                    if (result.Count == 0)
+                    {
+                        showEmptyWarning = true;
+                        continue;
                     }
                     return result;
                 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -32,6 +33,7 @@ namespace DepotDL.CLI
         private static string? _tempKeysPath;
 
         private static DepotSlotState[] _slots = Array.Empty<DepotSlotState>();
+        private static readonly ConcurrentDictionary<string, bool> _depotResultLog = new();
         private static readonly object _drawLock = new object();
         private static readonly Queue<Action> _pendingLogs = new Queue<Action>();
         private static bool _isTty = false;
@@ -231,6 +233,31 @@ namespace DepotDL.CLI
                     return 1;
                 }
 
+                if (string.IsNullOrEmpty(outputPath))
+                {
+                    outputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads", $"App_{appId}");
+                }
+                outputPath = Path.GetFullPath(outputPath);
+
+                var completedDepots = LoadCompletedDepots(outputPath);
+                int skippedCount = 0;
+                if (completedDepots.Count > 0)
+                {
+                    var toSkip = depots.Keys.Where(k => completedDepots.Contains(k)).ToList();
+                    foreach (var k in toSkip)
+                    {
+                        depots.Remove(k);
+                        skippedCount++;
+                    }
+                }
+
+                if (depots.Count == 0 && skippedCount > 0)
+                {
+                    DownloadTui.LeftPad = TuiDashboard.GetCenterLeftPad(80);
+                    WriteColored($"[Resume] All {skippedCount} depot(s) already complete. Nothing to download.", ConsoleColor.Green);
+                    return 0;
+                }
+
                 var manifestFiles = new Dictionary<string, string>();
                 string? manifestScanStatus = null;
                 if (!string.IsNullOrEmpty(manifestsDir) && Directory.Exists(manifestsDir))
@@ -266,14 +293,13 @@ namespace DepotDL.CLI
                 _tempKeysPath = Path.Combine(Path.GetTempPath(), $"depotdl_keys_{Guid.NewGuid():N}.vdf");
                 File.WriteAllLines(_tempKeysPath, tempKeysContent);
 
-                if (string.IsNullOrEmpty(outputPath))
-                {
-                    outputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads", $"App_{appId}");
-                }
-                outputPath = Path.GetFullPath(outputPath);
                 Directory.CreateDirectory(outputPath);
                 DownloadTui.LeftPad = TuiDashboard.GetCenterLeftPad(80);
                 DownloadTui.WriteHeader(appId, depots.Count, outputPath);
+                if (skippedCount > 0)
+                {
+                    DownloadTui.WriteSetup("Resumed", $"{skippedCount} already-complete depot(s) skipped", ConsoleColor.DarkGreen);
+                }
                 if (manifestScanStatus != null)
                 {
                     DownloadTui.WriteSetup("Manifest Cache", manifestScanStatus, ConsoleColor.Gray);
@@ -281,7 +307,8 @@ namespace DepotDL.CLI
                 DownloadTui.WriteSetup("Keys File", Path.GetFileName(_tempKeysPath), ConsoleColor.DarkGray);
 
                 _isTty = !Console.IsOutputRedirected;
-                
+                _depotResultLog.Clear();
+
                 var depotQueue = new ConcurrentQueue<DepotInfo>(depots.Values);
                 int totalDepots = depots.Count;
                 int successfulDepots = 0;
@@ -496,6 +523,7 @@ namespace DepotDL.CLI
                                     {
                                         depotOk = true;
                                         string depotId = depot.DepotId;
+                                        MarkDepotComplete(outputPath, depotId);
                                         lock (_drawLock)
                                         {
                                             _pendingLogs.Enqueue(() => DownloadTui.WriteStatus("Complete", $"Depot {depotId} downloaded successfully", ConsoleColor.Green));
@@ -507,6 +535,7 @@ namespace DepotDL.CLI
 
                             lock (allOkLock)
                             {
+                                _depotResultLog[depot.DepotId] = depotOk;
                                 if (depotOk)
                                 {
                                     successfulDepots++;
@@ -574,6 +603,28 @@ namespace DepotDL.CLI
                 }
 
                 DownloadTui.WriteFinal(!hadErrors, totalDepots, successfulDepots, outputPath);
+
+                if (!_isTty && _depotResultLog.Count > 0)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("  ┌────────────┬──────────────┐");
+                    Console.WriteLine("  │ Depot ID   │ Result       │");
+                    Console.WriteLine("  ├────────────┼──────────────┤");
+                    foreach (var kv in _depotResultLog.OrderBy(x => x.Key))
+                    {
+                        var orig = Console.ForegroundColor;
+                        Console.ForegroundColor = kv.Value ? ConsoleColor.Green : ConsoleColor.Red;
+                        Console.WriteLine($"  │ {kv.Key,-10} │ {(kv.Value ? "OK" : "FAILED"),-12} │");
+                        Console.ForegroundColor = orig;
+                    }
+                    Console.WriteLine("  └────────────┴──────────────┘");
+                    Console.WriteLine();
+                }
+
+                if (!hadErrors)
+                {
+                    ClearCheckpoints(outputPath);
+                }
 
                 if (hadErrors)
                 {
@@ -936,7 +987,23 @@ namespace DepotDL.CLI
                     {
                         speedStr = $" ({FormatSpeed(slot.CurrentSpeedBps)})";
                     }
-                    string statusText = slot.Status + speedStr;
+                    string etaStr = "";
+                    if (slot.Status == "Downloading" && pct > 0.5 && pct < 99.5 && slot.DownloadStartTime != null)
+                    {
+                        double etaSec = 0;
+                        if (slot.TotalUncompressedSize > 0 && slot.CurrentSpeedBps > 0)
+                        {
+                            etaSec = slot.TotalUncompressedSize * (100.0 - pct) / 100.0 / slot.CurrentSpeedBps;
+                        }
+                        else if (pct > 1.0)
+                        {
+                            double elapsed = (DateTime.UtcNow - slot.DownloadStartTime.Value).TotalSeconds;
+                            etaSec = elapsed * (100.0 - pct) / pct;
+                        }
+                        if (etaSec > 5 && etaSec < 86400)
+                            etaStr = $"  ETA {FormatEta(etaSec)}";
+                    }
+                    string statusText = slot.Status + speedStr + etaStr;
                     Console.Write(statusText);
                     charsWritten += statusText.Length;
                 }
@@ -1066,6 +1133,50 @@ namespace DepotDL.CLI
             {
                 LibraryManager.RobustDeleteDirectory(path);
             }
+        }
+
+        private static string GetCheckpointDir(string outputPath) =>
+            Path.Combine(outputPath, ".depotdl_progress");
+
+        private static HashSet<string> LoadCompletedDepots(string outputPath)
+        {
+            try
+            {
+                var dir = GetCheckpointDir(outputPath);
+                if (!Directory.Exists(dir)) return new HashSet<string>();
+                return Directory.GetFiles(dir, "*.done")
+                    .Select(f => Path.GetFileNameWithoutExtension(f))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
+            catch { return new HashSet<string>(); }
+        }
+
+        private static void MarkDepotComplete(string outputPath, string depotId)
+        {
+            try
+            {
+                var dir = GetCheckpointDir(outputPath);
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, $"{depotId}.done"), "");
+            }
+            catch { }
+        }
+
+        private static void ClearCheckpoints(string outputPath)
+        {
+            try
+            {
+                var dir = GetCheckpointDir(outputPath);
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+            catch { }
+        }
+
+        private static string FormatEta(double seconds)
+        {
+            if (seconds < 60) return $"{(int)seconds}s";
+            if (seconds < 3600) return $"{(int)(seconds / 60)}m {(int)(seconds % 60)}s";
+            return $"{(int)(seconds / 3600)}h {(int)((seconds % 3600) / 60)}m";
         }
 
         private static void PrintUsage()
